@@ -1,3 +1,4 @@
+mod error;
 mod middlewares;
 
 use actix_web::{App, HttpServer};
