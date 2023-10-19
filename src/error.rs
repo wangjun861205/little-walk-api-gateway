@@ -4,13 +4,13 @@ use std::fmt::{Debug, Display};
 use actix_web::ResponseError;
 
 pub struct Error {
-    status_code: StatusCode,
-    message: Box<dyn Display>,
-    cause: Option<Box<dyn Display>>,
+    pub status_code: StatusCode,
+    pub message: Box<dyn Display>,
+    pub cause: Option<Box<dyn Display>>,
 }
 
 impl Error {
-    pub fn new(status_code: StatusCode, message: impl Display) -> Self {
+    pub fn new(status_code: StatusCode, message: impl Display + 'static) -> Self {
         Self {
             status_code,
             message: Box::new(message),
@@ -18,7 +18,11 @@ impl Error {
         }
     }
 
-    pub fn wrap(status_code: StatusCode, message: impl Display, cause: impl Display) -> Self {
+    pub fn wrap(
+        status_code: StatusCode,
+        message: impl Display + 'static,
+        cause: impl Display + 'static,
+    ) -> Self {
         Self {
             status_code,
             message: Box::new(message),
@@ -29,7 +33,7 @@ impl Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(c) = self.cause {
+        if let Some(c) = &self.cause {
             return write!(f, "{}: {}", self.message, c);
         }
         write!(f, "{}", self.message)

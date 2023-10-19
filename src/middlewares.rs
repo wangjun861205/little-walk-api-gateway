@@ -1,7 +1,8 @@
 use crate::error::Error;
-use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
+use actix_web::body::BoxBody;
+use actix_web::dev::{Service, Transform};
 use actix_web::http::StatusCode;
-use actix_web::HttpResponse;
+use actix_web::{HttpRequest, HttpResponse};
 use std::future::Future;
 use std::pin::Pin;
 use std::{
@@ -9,21 +10,17 @@ use std::{
     task::Poll,
 };
 
-fn verify_token(token: &str) -> Result<bool, Error> {
-    Ok(true)
-}
-
-type ServiceFuture = Pin<Box<dyn Future<Output = Result<ServiceResponse, ()>>>>;
+type ServiceFuture = Pin<Box<dyn Future<Output = Result<HttpResponse, ()>>>>;
 
 pub struct AuthMW {
     url: String,
 }
 
-impl<S> Transform<S, ServiceRequest> for AuthMW
+impl<S> Transform<S, HttpRequest> for AuthMW
 where
-    S: Service<ServiceRequest, Response = ServiceResponse, Error = (), Future = ServiceFuture>,
+    S: Service<HttpRequest, Response = HttpResponse, Error = (), Future = ServiceFuture>,
 {
-    type Response = ServiceResponse;
+    type Response = HttpResponse;
     type Error = ();
     type InitError = ();
     type Transform = AuthMWService<S>;
@@ -42,80 +39,66 @@ pub struct AuthMWService<S> {
     service: S,
 }
 
-impl<S> AuthMWService<S>
-where
-    S: Service<ServiceRequest, Response = ServiceResponse, Error = (), Future = ServiceFuture>,
-{
-    async fn verify_token(&self, token: &str) -> Result<(), Error> {
-        let resp = reqwest::Client::new()
-            .get(format!("{}/{}", &self.url, token))
-            .send()
-            .await
-            .map_err(|e| {
-                Error::wrap(
+async fn verify_token(url: String, token: String) -> Result<(), Error> {
+    let resp = reqwest::Client::new()
+        .get(format!("{}/{}", url, token))
+        .send()
+        .await
+        .map_err(|e| {
+            Error::wrap(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to communicate with auth service",
+                e,
+            )
+        })?;
+    let status = resp.status();
+    if status != StatusCode::OK {
+        match resp.text().await {
+            Ok(text) => return Err(Error::new(status, text)),
+            Err(e) => {
+                return Err(Error::wrap(
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "failed to communicate with auth service",
+                    "failed to parse response",
                     e,
-                )
-            })?;
-        let status = resp.status();
-        if status != StatusCode::OK {
-            match resp.text().await {
-                Ok(text) => return Err(Error::new(status, text)),
-                Err(e) => {
-                    return Err(Error::wrap(
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "failed to parse response",
-                        e,
-                    ))
-                }
+                ))
             }
         }
-        Ok(())
     }
+    Ok(())
 }
 
-impl<S> Service<ServiceRequest> for AuthMWService<S>
+impl<S> Service<HttpRequest> for AuthMWService<S>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse, Error = (), Future = ServiceFuture>,
+    S: Service<HttpRequest, Response = HttpResponse, Error = (), Future = ServiceFuture>,
 {
     type Error = ();
-    type Response = ServiceResponse;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Response = HttpResponse;
+    type Future = ServiceFuture;
 
     fn poll_ready(&self, _: &mut core::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&self, req: ServiceRequest) -> Self::Future {
+    fn call(&self, req: HttpRequest) -> Self::Future {
         if req.path() == "/login" {
-            return self.service.call(req);
+            return Box::pin(self.service.call(req));
         }
-        if let Some(hv) = req.headers().get("X-Auth-Token") {
+        if let Some(hv) = req.clone().headers().get("X-Auth-Token") {
             if let Ok(token) = hv.to_str() {
+                let url = self.url.clone();
+                let token = token.to_owned();
                 let next = self.service.call(req);
                 return Box::pin(async move {
-                    match self.verify_token(token).await {
-                        Ok(()) => {
-                            return self.service.call(req);
-                        }
-                        _ => {
-                            return Box::pin(ready(Ok(ServiceResponse::new(
-                                req.request().clone(),
-                                HttpResponse::new(StatusCode::UNAUTHORIZED),
-                            ))))
+                    match verify_token(url, token).await {
+                        Ok(()) => next.await,
+                        Err(e) => {
+                            Ok(HttpResponse::new(e.status_code)
+                                .set_body(BoxBody::new(e.to_string())))
                         }
                     }
                 });
             }
-            return Box::pin(ready(Ok(ServiceResponse::new(
-                req.request().clone(),
-                HttpResponse::new(StatusCode::UNAUTHORIZED),
-            ))));
         }
-        return Box::pin(ready(Ok(ServiceResponse::new(
-            req.request().clone(),
-            HttpResponse::new(StatusCode::UNAUTHORIZED),
-        ))));
+        Box::pin(ready(Ok(HttpResponse::new(StatusCode::UNAUTHORIZED))))
     }
 }
