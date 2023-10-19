@@ -15,12 +15,14 @@ use std::{
 type ServiceFuture = Pin<Box<dyn Future<Output = Result<ServiceResponse, Error>>>>;
 
 pub struct AuthMW {
-    url: String,
+    auth_service_address: String,
 }
 
 impl AuthMW {
-    pub fn new(url: String) -> Self {
-        Self { url }
+    pub fn new(auth_service_address: String) -> Self {
+        Self {
+            auth_service_address,
+        }
     }
 }
 
@@ -36,7 +38,7 @@ where
 
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(AuthMWService {
-            url: self.url.clone(),
+            url: self.auth_service_address.clone(),
             service,
         }))
     }
@@ -47,9 +49,9 @@ pub struct AuthMWService<S> {
     service: S,
 }
 
-async fn verify_token(url: String, token: String) -> Result<(), Error> {
+async fn verify_token(address: String, token: String) -> Result<(), Error> {
     let resp = reqwest::Client::new()
-        .get(format!("{}/tokens/{}/verify", url, token))
+        .get(format!("http://{}/tokens/{}/verify", address, token))
         .send()
         .await
         .map_err(ErrorInternalServerError)?;
@@ -76,9 +78,6 @@ where
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        if req.path() == "/login" {
-            return Box::pin(self.service.call(req));
-        }
         let http_req = req.request().clone();
         if let Some(hv) = req.headers().get("X-Auth-Token") {
             if let Ok(token) = hv.to_str() {
