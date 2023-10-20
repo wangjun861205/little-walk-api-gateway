@@ -2,17 +2,24 @@ mod external_apis;
 mod handlers;
 mod middlewares;
 
+use std::env;
+
 use actix_web::{
-    web::{delete, get, post, put, scope, Data},
+    middleware::Logger,
+    web::{delete, get, post, put, resource, route, scope, service, Data},
     App, HttpServer,
 };
-use handlers::account::{login, logout, register};
+use handlers::account::{login_by_sms_verification_code, logout, register};
 use middlewares::auth::AuthMW;
 use nb_from_env::{FromEnv, FromEnvDerive};
 
 #[derive(FromEnvDerive)]
 pub struct Config {
     pub listen_address: String,
+    #[env_default("info")]
+    pub log_level: String,
+    #[env_default("%t %s %r %a %D")]
+    pub log_format: String,
     pub auth_service_address: String,
     pub sms_verification_code_service_address: String,
 }
@@ -27,8 +34,11 @@ pub struct ServiceAddresses {
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     let config = Config::from_env();
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or(config.log_level));
     HttpServer::new(move || {
+        let logger = Logger::new(&config.log_format).log_target("little-walk-api-gateway");
         App::new()
+            .wrap(logger)
             .app_data(Data::new(ServiceAddresses {
                 auth_service_address: config.auth_service_address.clone(),
                 sms_verification_code_service_address: config
@@ -37,7 +47,10 @@ async fn main() -> std::io::Result<()> {
             }))
             .service(
                 scope("accounts")
-                    .route("login", put().to(login))
+                    .service(scope("login").route(
+                        "by_sms_verification_code",
+                        put().to(login_by_sms_verification_code),
+                    ))
                     .route("logout", delete().to(logout))
                     .route("register", post().to(register)),
             )

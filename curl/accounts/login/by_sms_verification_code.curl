@@ -1,0 +1,2 @@
+url=http://localhost:8000/accounts/login/by_sms_verification_code?phone=13793148690&code=123456
+request=PUT

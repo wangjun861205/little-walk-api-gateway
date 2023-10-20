@@ -1,12 +1,12 @@
 use crate::external_apis::common::request;
-use crate::ServiceAddresses;
-use actix_web::{error::ErrorInternalServerError, web::Data, Error};
+use actix_web::{error::ErrorInternalServerError, Error};
 use reqwest::{Method, Url};
+use std::fmt::Display;
 
 pub async fn verify_code(
-    service_address: String,
-    phone: String,
-    code: String,
+    service_address: impl Display,
+    phone: impl Display,
+    code: impl Display,
 ) -> Result<(), Error> {
     let url = Url::parse(&format!(
         "http://{}/phones/{}/codes/{}",
@@ -16,7 +16,7 @@ pub async fn verify_code(
     request::<()>(Method::GET, url).await
 }
 
-pub async fn send_code(service_address: String, phone: String) -> Result<(), Error> {
+pub async fn send_code(service_address: impl Display, phone: impl Display) -> Result<(), Error> {
     let url = Url::parse(&format!(
         "http://{}/phones/{}/codes",
         &service_address, &phone

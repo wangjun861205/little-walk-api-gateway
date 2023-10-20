@@ -1,0 +1,46 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug executable 'little-walk-api-gateway'",
+			"cargo": {
+				"args": [
+					"build",
+					"--bin=little-walk-api-gateway",
+					"--package=little-walk-api-gateway"
+				],
+				"filter": {
+					"name": "little-walk-api-gateway",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug unit tests in executable 'little-walk-api-gateway'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--bin=little-walk-api-gateway",
+					"--package=little-walk-api-gateway"
+				],
+				"filter": {
+					"name": "little-walk-api-gateway",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		}
+	]
+}
