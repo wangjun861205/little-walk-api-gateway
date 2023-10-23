@@ -1,17 +1,18 @@
+mod docs;
 mod external_apis;
 mod handlers;
 mod middlewares;
-
-use std::env;
 
 use actix_web::{
     middleware::Logger,
     web::{delete, get, post, put, resource, route, scope, service, Data},
     App, HttpServer,
 };
+use docs::api::generate_api_doc;
 use handlers::account::{login_by_sms_verification_code, logout, register};
 use middlewares::auth::AuthMW;
 use nb_from_env::{FromEnv, FromEnvDerive};
+use std::fs::create_dir_all;
 
 #[derive(FromEnvDerive)]
 pub struct Config {
@@ -32,6 +33,8 @@ pub struct ServiceAddresses {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    create_dir_all("./docs").expect("failed to create docs dir");
+    generate_api_doc("./docs/api-spec.yml").expect("failed to generate docs");
     dotenv::dotenv().ok();
     let config = Config::from_env();
     env_logger::init_from_env(env_logger::Env::new().default_filter_or(config.log_level));

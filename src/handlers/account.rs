@@ -10,10 +10,6 @@ use actix_web::{
 use reqwest::StatusCode;
 use serde::Deserialize;
 
-pub async fn login() -> HttpResponse {
-    unimplemented!()
-}
-
 pub async fn logout() -> HttpResponse {
     unimplemented!()
 }
@@ -28,6 +24,18 @@ pub struct LoginBySMSVerificationCodeParams {
     pub code: String,
 }
 
+#[utoipa::path(
+    put,
+    path = "/login/by_sms_verification_code",
+    responses(
+        (status = 200, description = "successfully login"),
+        (status = 403, description = "failed to login")
+    ),
+    params(
+        ("phone" = String, Query, description = "phone number"),
+        ("code" = String, Query, description = "verification code")
+    )
+)]
 pub async fn login_by_sms_verification_code(
     service_addresses: Data<ServiceAddresses>,
     params: Query<LoginBySMSVerificationCodeParams>,
