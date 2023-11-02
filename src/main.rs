@@ -1,3 +1,5 @@
+mod core;
+
 mod docs;
 mod external_apis;
 mod handlers;
