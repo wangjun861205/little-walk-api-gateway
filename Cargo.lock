@@ -369,6 +369,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-targets",
 ]
@@ -922,6 +923,7 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "anyhow",
+ "bytes",
  "chrono",
  "dotenv",
  "env_logger",

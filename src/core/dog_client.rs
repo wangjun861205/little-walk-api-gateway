@@ -1,7 +1,7 @@
 use anyhow::Error;
-use chrono::{DateTime, Local};
+use bytes::Bytes;
 
 pub trait DogClient {
-    async fn add_dog(&self, owner_id: &str, name: &str, breed: &str, gender: &str) -> Result<String, Error>;
-    async fn update_birthday(&self, birthday: DateTime<Local>) -> Result<(), Error>;
+    async fn add_dog(&self, owner_id: &str, body: Bytes) -> Result<String, Error>;
+    async fn dogs_by_owner_id(&self, owner_id: &str) -> Result<Bytes, Error>;
 }
