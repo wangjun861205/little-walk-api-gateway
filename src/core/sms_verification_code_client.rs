@@ -1,4 +1,4 @@
-use anyhow::Error;
+use crate::core::error::Error;
 
 pub trait SMSVerificationCodeClient {
     async fn send_code(&self, phone: &str) -> Result<(), Error>;

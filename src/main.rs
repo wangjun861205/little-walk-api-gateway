@@ -1,9 +1,12 @@
 mod core;
 
+mod auth_clients;
 mod docs;
 mod external_apis;
 mod handlers;
 mod middlewares;
+mod upload_clients;
+mod utils;
 
 use actix_web::{
     middleware::Logger,
@@ -39,9 +42,12 @@ async fn main() -> std::io::Result<()> {
     generate_api_doc("./docs/api-spec.yml").expect("failed to generate docs");
     dotenv::dotenv().ok();
     let config = Config::from_env();
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or(config.log_level));
+    env_logger::init_from_env(
+        env_logger::Env::new().default_filter_or(config.log_level),
+    );
     HttpServer::new(move || {
-        let logger = Logger::new(&config.log_format).log_target("little-walk-api-gateway");
+        let logger = Logger::new(&config.log_format)
+            .log_target("little-walk-api-gateway");
         App::new()
             .wrap(logger)
             .app_data(Data::new(ServiceAddresses {
@@ -59,7 +65,10 @@ async fn main() -> std::io::Result<()> {
                     .route("logout", delete().to(logout))
                     .route("register", post().to(register)),
             )
-            .service(scope("apis").wrap(AuthMW::new(config.auth_service_address.clone())))
+            .service(
+                scope("apis")
+                    .wrap(AuthMW::new(config.auth_service_address.clone())),
+            )
     })
     .bind(config.listen_address)?
     .run()

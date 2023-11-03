@@ -1,4 +1,4 @@
-use anyhow::Error;
+use crate::core::error::Error;
 use bytes::Bytes;
 
 pub trait DogClient {

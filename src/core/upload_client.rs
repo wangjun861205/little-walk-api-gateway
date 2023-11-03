@@ -1,10 +1,13 @@
-use actix_web::web::Bytes;
-use anyhow::Error;
-use futures::Stream;
-use std::pin::Pin;
+use crate::core::error::Error;
+
+use super::service::ByteStream;
 
 pub trait UploadClient {
-    async fn upload(&self, filename: &str, stream: impl Stream<Item = Result<Bytes, Error>>) -> Result<String, Error>;
+    async fn upload(
+        &self,
+        filename: &str,
+        stream: ByteStream,
+    ) -> Result<ByteStream, Error>;
 
-    async fn download(&self, id: String) -> Result<Pin<Box<dyn Stream<Item = Result<Bytes, Error>>>>, Error>;
+    async fn download(&self, id: &str) -> Result<ByteStream, Error>;
 }
