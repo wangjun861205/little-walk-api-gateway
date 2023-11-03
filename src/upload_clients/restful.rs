@@ -2,8 +2,6 @@ use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use crate::core::upload_client::UploadClient as IUploadClient;
 use crate::utils::restful::make_request;
-use bytes::Bytes;
-use futures::Stream;
 use reqwest::{
     multipart::{Form, Part},
     Body, Method,

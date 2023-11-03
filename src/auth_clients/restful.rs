@@ -3,12 +3,9 @@ use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use crate::utils::io::stream_to_bytes;
 use crate::utils::restful::make_request;
-use bytes::Bytes;
-use futures::Stream;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::from_slice;
-use std::pin::Pin;
 use url::Url;
 
 pub struct AuthClient {
