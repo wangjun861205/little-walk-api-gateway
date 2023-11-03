@@ -1,7 +1,7 @@
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use futures::TryStreamExt;
-use reqwest::{multipart::Form, Client, IntoUrl, Method};
+use reqwest::{multipart::Form, Body, Client, IntoUrl, Method};
 use serde::Serialize;
 use std::time::Duration;
 
@@ -15,7 +15,7 @@ pub(crate) async fn make_request<U, P, B>(
 where
     U: IntoUrl,
     P: Serialize,
-    B: Serialize,
+    B: Into<Body>,
 {
     let mut builder = Client::new()
         .request(method, url)
@@ -24,9 +24,7 @@ where
         builder = builder.query(&params);
     }
     if let Some(body) = body {
-        let json = serde_json::to_string(&body)
-            .map_err(|e| Error::InvalidRequestBody(e.to_string()))?;
-        builder = builder.body(json);
+        builder = builder.body(body);
     }
     if let Some(multipart) = multipart {
         builder = builder.multipart(multipart);

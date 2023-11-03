@@ -82,10 +82,13 @@ impl IAuthClient for AuthClient {
             Method::PUT,
             url,
             Option::<(String, String)>::None,
-            Some(LoginReq {
-                phone: phone.into(),
-                password: password.into(),
-            }),
+            Some(
+                serde_json::to_string(&LoginReq {
+                    phone: phone.into(),
+                    password: password.into(),
+                })
+                .map_err(|e| Error::InvalidRequestBody(e.to_string()))?,
+            ),
             None,
         )
         .await
@@ -104,10 +107,13 @@ impl IAuthClient for AuthClient {
             Method::PUT,
             url,
             Option::<(String, String)>::None,
-            Some(SignupReq {
-                phone: phone.into(),
-                password: password.into(),
-            }),
+            Some(
+                serde_json::to_string(&SignupReq {
+                    phone: phone.into(),
+                    password: password.into(),
+                })
+                .map_err(|e| Error::InvalidRequestBody(e.to_string()))?,
+            ),
             None,
         )
         .await
