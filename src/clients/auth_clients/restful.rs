@@ -1,15 +1,24 @@
-use crate::core::auth_client::AuthClient as IAuthClient;
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use crate::utils::io::stream_to_bytes;
 use crate::utils::restful::make_request;
-use reqwest::Method;
+use crate::{
+    core::auth_client::AuthClient as IAuthClient, utils::restful::request,
+};
+use reqwest::{Client, Method, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::from_slice;
 use url::Url;
 
+#[derive(Clone)]
 pub struct AuthClient {
     base_url: Url,
+}
+
+impl AuthClient {
+    pub fn new(base_url: Url) -> Self {
+        Self { base_url }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -38,11 +47,12 @@ impl IAuthClient for AuthClient {
     async fn exists_user(&self, phone: &str) -> Result<bool, Error> {
         let url = self
             .base_url
-            .join(&format!("/users/{}/exists", phone))
+            .join(&format!("/phones/{}/exists", phone))
             .map_err(|e| Error::InvalidURL(e.to_string()))?;
         let body = make_request(
             Method::GET,
             url,
+            None,
             Option::<(String, String)>::None,
             Option::<Vec<u8>>::None,
             None,
@@ -62,6 +72,7 @@ impl IAuthClient for AuthClient {
         make_request(
             Method::PUT,
             url,
+            None,
             Option::<(String, String)>::None,
             Option::<Vec<u8>>::None,
             None,
@@ -81,6 +92,7 @@ impl IAuthClient for AuthClient {
         make_request(
             Method::PUT,
             url,
+            None,
             Option::<(String, String)>::None,
             Some(
                 serde_json::to_string(&LoginReq {
@@ -104,8 +116,9 @@ impl IAuthClient for AuthClient {
             .join("/signup")
             .map_err(|e| Error::InvalidURL(e.to_string()))?;
         make_request(
-            Method::PUT,
+            Method::POST,
             url,
+            None,
             Option::<(String, String)>::None,
             Some(
                 serde_json::to_string(&SignupReq {
@@ -122,16 +135,13 @@ impl IAuthClient for AuthClient {
     async fn verify_token(&self, token: &str) -> Result<Option<String>, Error> {
         let url = self
             .base_url
-            .join(&format!("/tokens/{}/verify", token))
+            .join(&format!("/tokens/{}/verification", token))
             .map_err(|e| Error::InvalidURL(e.to_string()))?;
-        let stream = make_request(
-            Method::PUT,
-            url,
-            Option::<(String, String)>::None,
-            Option::<Vec<u8>>::None,
-            None,
-        )
-        .await?;
+        let builder = Client::new().request(Method::GET, url);
+        let (stream, status) = request(builder).await?;
+        if status == StatusCode::UNAUTHORIZED {
+            return Err(Error::InvalidToken);
+        }
         let bs = stream_to_bytes(stream).await?;
         let result: VerifyTokenResp = serde_json::from_slice(&bs)
             .map_err(|e| Error::InvalidResponse(e.to_string()))?;

@@ -1,10 +1,10 @@
-use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use crate::core::upload_client::UploadClient as IUploadClient;
 use crate::utils::restful::make_request;
+use crate::{core::error::Error, utils::restful::request};
 use reqwest::{
     multipart::{Form, Part},
-    Body, Method,
+    Body, Client, Method,
 };
 use url::Url;
 
@@ -21,24 +21,23 @@ impl UploadClient {
 impl IUploadClient for UploadClient {
     async fn upload(
         &self,
-        filename: &str,
+        content_type_header: &str,
+        user_id: &str,
+        size_limit: usize,
         stream: ByteStream,
     ) -> Result<ByteStream, Error> {
         let url = self
             .base_url
             .join("/files")
             .map_err(|e| Error::InvalidURL(e.to_string()))?;
-        let body = Body::wrap_stream(stream);
-        let form = Form::new()
-            .part("file", Part::stream(body).file_name(filename.to_owned()));
-        make_request(
-            Method::POST,
-            url,
-            Option::<String>::None,
-            Option::<String>::None,
-            Some(form),
-        )
-        .await
+        let builder = Client::new()
+            .request(Method::POST, url)
+            .header("X-User-ID", user_id)
+            .header("Content-Type", content_type_header)
+            .header("X-Size-Limit", size_limit.to_string())
+            .body(Body::wrap_stream(stream));
+        let (stream, _) = request(builder).await?;
+        Ok(stream)
     }
     async fn download(&self, id: &str) -> Result<ByteStream, Error> {
         let url = self
@@ -48,6 +47,7 @@ impl IUploadClient for UploadClient {
         make_request(
             Method::GET,
             url,
+            None,
             Option::<String>::None,
             Option::<String>::None,
             None,

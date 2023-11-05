@@ -1,0 +1,3 @@
+url=http://localhost:8000/apis/dogs/portraits/6546ed8fb5093c4041c22b88
+header=X-Auth-Token:eyJhbGciOiJIUzM4NCJ9.eyJpZCI6IjY1NDY0M2ZmM2Q0YzVhMmU1Yzg5MTEwMiJ9.mRt1Fgx4fyUQbOOiAcSG8EyLl-Nnw4iKZl-YjeQWhWIYemOii-Waw8x5Ndu5JHsO
+verbose
