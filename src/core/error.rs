@@ -12,6 +12,8 @@ pub enum Error {
     InvalidRequestBody(String),
     InvalidRequestHeader(String),
     InvalidVerificationCode,
+    NoUserID,
+    InvalidUserID(String),
 }
 
 impl Display for Error {
@@ -37,6 +39,12 @@ impl Display for Error {
             }
             Self::InvalidVerificationCode => {
                 write!(f, "Invalid verification code")
+            }
+            Self::NoUserID => {
+                write!(f, "not user id")
+            }
+            Self::InvalidUserID(cause) => {
+                write!(f, "invalid user id: {}", cause)
             }
         }
     }

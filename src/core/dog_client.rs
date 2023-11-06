@@ -1,7 +1,7 @@
 use crate::core::error::Error;
-use bytes::Bytes;
+use reqwest::StatusCode;
 
-use super::service::ByteStream;
+use super::{requests::DogQuery, service::ByteStream};
 
 pub trait DogClient {
     async fn add_dog(
@@ -13,4 +13,11 @@ pub trait DogClient {
         &self,
         owner_id: &str,
     ) -> Result<ByteStream, Error>;
+
+    async fn query_dogs(
+        &self,
+        query: &DogQuery,
+        page: i32,
+        size: i32,
+    ) -> Result<(ByteStream, StatusCode), Error>;
 }

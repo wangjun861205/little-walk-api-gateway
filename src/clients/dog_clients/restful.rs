@@ -1,14 +1,11 @@
 use crate::{
     core::{
-        dog_client::DogClient as IDogClient, error::Error, service::ByteStream,
+        dog_client::DogClient as IDogClient, error::Error, requests::DogQuery,
+        service::ByteStream,
     },
     utils::restful::request,
 };
-use reqwest::{
-    header::{HeaderName, HeaderValue},
-    Body, Client, Method, Request, RequestBuilder,
-};
-use std::str::FromStr;
+use reqwest::{Body, Client, Method, StatusCode};
 use url::Url;
 
 pub struct DogClient {
@@ -48,5 +45,21 @@ impl IDogClient for DogClient {
             .join(format!("/users/{}/dogs", owner_id).as_str())?;
         let (stream, _) = request(Client::new().get(url)).await?;
         Ok(stream)
+    }
+
+    async fn query_dogs(
+        &self,
+        query: &DogQuery,
+        page: i32,
+        size: i32,
+    ) -> Result<(ByteStream, StatusCode), Error> {
+        let mut url = self.base_url.join("/dogs")?;
+        url.set_query(Some(&format!("page={}", page)));
+        url.set_query(Some(&format!("size={}", size)));
+        if let Some(owner_id_eq) = &query.owner_id_eq {
+            url.set_query(Some(&format!("owner_id_eq={}", owner_id_eq)));
+        }
+        let builder = Client::new().request(Method::GET, url);
+        request(builder).await
     }
 }

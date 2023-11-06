@@ -1,5 +1,6 @@
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
+use actix_web::HttpRequest;
 use futures::TryStreamExt;
 use reqwest::{
     header::HeaderMap, multipart::Form, Body, Client, IntoUrl, Method,
@@ -77,4 +78,14 @@ pub async fn request(
         ),
         status_code,
     ))
+}
+
+pub fn extract_user_id(req: &HttpRequest) -> Result<&str, Error> {
+    let user_id = req
+        .headers()
+        .get("X-User-ID")
+        .ok_or(Error::NoUserID)?
+        .to_str()
+        .map_err(|e| Error::InvalidUserID(e.to_string()))?;
+    Ok(user_id)
 }

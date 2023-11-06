@@ -32,6 +32,9 @@ impl ResponseError for Error {
             Error::InvalidVerificationCode => {
                 HttpResponse::Unauthorized().body("invalid verification code")
             }
+            Error::NoUserID => HttpResponse::Unauthorized().body("no user id"),
+            Error::InvalidUserID(cause) => HttpResponse::Unauthorized()
+                .body(format!("invalid user id: {}", cause)),
         }
     }
 }

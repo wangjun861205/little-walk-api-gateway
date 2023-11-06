@@ -1,15 +1,21 @@
 use actix_web::{
-    web::{Bytes, Data, Path, Payload},
+    web::{Bytes, Data, Path, Payload, Query},
     HttpRequest, HttpResponse,
 };
 
-use crate::core::{
-    auth_client::AuthClient, dog_client::DogClient, error::Error,
-    service::Service, sms_verification_code_client::SMSVerificationCodeClient,
-    upload_client::UploadClient,
+use crate::{
+    core::{
+        auth_client::AuthClient, dog_client::DogClient, error::Error,
+        service::Service,
+        sms_verification_code_client::SMSVerificationCodeClient,
+        upload_client::UploadClient,
+    },
+    utils::restful::extract_user_id,
 };
 
 use futures::{stream, StreamExt, TryStreamExt};
+
+use super::common::Pagination;
 
 pub async fn add_dog<A, U, S, D>(
     service: Data<Service<A, U, S, D>>,
@@ -85,4 +91,20 @@ where
 {
     let result = service.download(&id.as_ref().0).await?;
     Ok(HttpResponse::Ok().streaming(result))
+}
+
+pub async fn my_dogs<A, U, S, D>(
+    service: Data<Service<A, U, S, D>>,
+    req: HttpRequest,
+    Query(page): Query<Pagination>,
+) -> Result<HttpResponse, Error>
+where
+    A: AuthClient,
+    U: UploadClient,
+    S: SMSVerificationCodeClient,
+    D: DogClient,
+{
+    let uid = extract_user_id(&req)?;
+    let (stream, status) = service.my_dogs(uid, page.page, page.size).await?;
+    Ok(HttpResponse::build(status).streaming(stream))
 }

@@ -1,10 +1,11 @@
 use crate::core::{
-    auth_client::AuthClient, error::Error,
+    auth_client::AuthClient, error::Error, requests::DogQuery,
     sms_verification_code_client::SMSVerificationCodeClient,
     upload_client::UploadClient,
 };
 use bytes::Bytes;
 use futures::Stream;
+use reqwest::StatusCode;
 use std::pin::Pin;
 
 use super::dog_client::DogClient;
@@ -125,5 +126,22 @@ where
 
     pub async fn download(&self, id: &str) -> Result<ByteStream, Error> {
         self.upload_client.download(id).await
+    }
+
+    pub async fn my_dogs(
+        &self,
+        uid: &str,
+        page: i32,
+        size: i32,
+    ) -> Result<(ByteStream, StatusCode), Error> {
+        self.dog_client
+            .query_dogs(
+                &DogQuery {
+                    owner_id_eq: Some(uid.to_owned()),
+                },
+                page,
+                size,
+            )
+            .await
     }
 }
