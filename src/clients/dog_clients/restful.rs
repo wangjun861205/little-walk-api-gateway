@@ -54,11 +54,12 @@ impl IDogClient for DogClient {
         size: i32,
     ) -> Result<(ByteStream, StatusCode), Error> {
         let mut url = self.base_url.join("/dogs")?;
-        url.set_query(Some(&format!("page={}", page)));
-        url.set_query(Some(&format!("size={}", size)));
+        let mut params =
+            vec![format!("page={}", page), format!("size={}", size)];
         if let Some(owner_id_eq) = &query.owner_id_eq {
-            url.set_query(Some(&format!("owner_id_eq={}", owner_id_eq)));
+            params.push(format!("owner_id_eq={}", owner_id_eq));
         }
+        url.set_query(Some(&params.join("&")));
         let builder = Client::new().request(Method::GET, url);
         request(builder).await
     }

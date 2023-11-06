@@ -106,5 +106,7 @@ where
 {
     let uid = extract_user_id(&req)?;
     let (stream, status) = service.my_dogs(uid, page.page, page.size).await?;
-    Ok(HttpResponse::build(status).streaming(stream))
+    Ok(HttpResponse::build(status)
+        .insert_header(("Content-Type", "application/json; charset=utf-8"))
+        .streaming(stream))
 }
