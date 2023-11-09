@@ -1,12 +1,16 @@
 use crate::{
     core::{
-        dog_client::DogClient as IDogClient, error::Error, requests::DogQuery,
+        dog_client::DogClient as IDogClient,
+        error::Error,
+        requests::{DogPortraitUpdate, DogQuery},
         service::ByteStream,
     },
-    utils::restful::request,
+    utils::{io::stream_to_bytes, restful::request},
 };
 use reqwest::{Body, Client, Method, StatusCode};
 use url::Url;
+
+use super::responses::IsOwnerOfTheDogResp;
 
 pub struct DogClient {
     base_url: Url,
@@ -61,6 +65,36 @@ impl IDogClient for DogClient {
         }
         url.set_query(Some(&params.join("&")));
         let builder = Client::new().request(Method::GET, url);
+        request(builder).await
+    }
+
+    async fn is_owner_of_the_dog(
+        &self,
+        owner_id: &str,
+        dog_id: &str,
+    ) -> Result<bool, Error> {
+        let mut url = self.base_url.join("/dogs")?;
+        let params =
+            vec![format!("owner_id={}", owner_id), format!("id={}", dog_id)];
+        url.set_query(Some(&params.join("&")));
+        let builder = Client::new().request(Method::GET, url);
+        let (stream, _) = request(builder).await?;
+        let bytes = stream_to_bytes(stream).await?;
+        let result: IsOwnerOfTheDogResp = serde_json::from_slice(&bytes)?;
+        Ok(result.is_owner)
+    }
+
+    async fn update_dog_portrait(
+        &self,
+        dog_id: &str,
+        portrait_id: &str,
+    ) -> Result<(ByteStream, StatusCode), Error> {
+        let url = self.base_url.join(&format!("/dogs/{}/portrait", dog_id))?;
+        let builder = Client::new().request(Method::PUT, url).body(
+            serde_json::to_string(&DogPortraitUpdate {
+                portrait_id: portrait_id.into(),
+            })?,
+        );
         request(builder).await
     }
 }

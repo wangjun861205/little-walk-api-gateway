@@ -14,6 +14,7 @@ pub enum Error {
     InvalidVerificationCode,
     NoUserID,
     InvalidUserID(String),
+    Forbidden,
 }
 
 impl Display for Error {
@@ -45,6 +46,9 @@ impl Display for Error {
             }
             Self::InvalidUserID(cause) => {
                 write!(f, "invalid user id: {}", cause)
+            }
+            Self::Forbidden => {
+                write!(f, "forbidden")
             }
         }
     }

@@ -35,6 +35,7 @@ impl ResponseError for Error {
             Error::NoUserID => HttpResponse::Unauthorized().body("no user id"),
             Error::InvalidUserID(cause) => HttpResponse::Unauthorized()
                 .body(format!("invalid user id: {}", cause)),
+            Error::Forbidden => HttpResponse::Forbidden().body("forbidden"),
         }
     }
 }

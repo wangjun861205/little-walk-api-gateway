@@ -110,3 +110,21 @@ where
         .insert_header(("Content-Type", "application/json; charset=utf-8"))
         .streaming(stream))
 }
+
+pub async fn update_dog_portrait<A, U, S, D>(
+    service: Data<Service<A, U, S, D>>,
+    req: HttpRequest,
+    Query(page): Query<Pagination>,
+) -> Result<HttpResponse, Error>
+where
+    A: AuthClient,
+    U: UploadClient,
+    S: SMSVerificationCodeClient,
+    D: DogClient,
+{
+    let uid = extract_user_id(&req)?;
+    let (stream, status) = service.my_dogs(uid, page.page, page.size).await?;
+    Ok(HttpResponse::build(status)
+        .insert_header(("Content-Type", "application/json; charset=utf-8"))
+        .streaming(stream))
+}

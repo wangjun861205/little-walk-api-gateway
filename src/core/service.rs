@@ -8,7 +8,7 @@ use futures::Stream;
 use reqwest::StatusCode;
 use std::pin::Pin;
 
-use super::dog_client::DogClient;
+use super::{dog_client::DogClient, requests::DogUpdate};
 
 pub type ByteStream =
     Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send + Sync>>;
@@ -142,6 +142,21 @@ where
                 page,
                 size,
             )
+            .await
+    }
+
+    pub async fn update_dog_portrait(
+        &self,
+        uid: &str,
+        dog_id: &str,
+        portrait_id: &str,
+    ) -> Result<(ByteStream, StatusCode), Error> {
+        let is_owner = self.dog_client.is_owner_of_the_dog(uid, dog_id).await?;
+        if !is_owner {
+            return Err(Error::Forbidden);
+        }
+        self.dog_client
+            .update_dog_portrait(dog_id, portrait_id)
             .await
     }
 }
