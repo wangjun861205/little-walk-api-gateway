@@ -1,12 +1,12 @@
 use actix_web::{
-    web::{Bytes, Data, Path, Payload, Query},
+    web::{Bytes, Data, Json, Path, Payload, Query},
     HttpRequest, HttpResponse,
 };
 
 use crate::{
     core::{
         auth_client::AuthClient, dog_client::DogClient, error::Error,
-        service::Service,
+        requests::DogPortraitUpdate, service::Service,
         sms_verification_code_client::SMSVerificationCodeClient,
         upload_client::UploadClient,
     },
@@ -14,6 +14,7 @@ use crate::{
 };
 
 use futures::{stream, StreamExt, TryStreamExt};
+use serde::Deserialize;
 
 use super::common::Pagination;
 
@@ -111,10 +112,16 @@ where
         .streaming(stream))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateDogPortraitReq {
+    portrait_id: String,
+}
+
 pub async fn update_dog_portrait<A, U, S, D>(
     service: Data<Service<A, U, S, D>>,
     req: HttpRequest,
-    Query(page): Query<Pagination>,
+    Json(UpdateDogPortraitReq { portrait_id }): Json<UpdateDogPortraitReq>,
+    dog_id: Path<(String,)>,
 ) -> Result<HttpResponse, Error>
 where
     A: AuthClient,
@@ -123,7 +130,9 @@ where
     D: DogClient,
 {
     let uid = extract_user_id(&req)?;
-    let (stream, status) = service.my_dogs(uid, page.page, page.size).await?;
+    let (stream, status) = service
+        .update_dog_portrait(uid, &dog_id.as_ref().0, &portrait_id)
+        .await?;
     Ok(HttpResponse::build(status)
         .insert_header(("Content-Type", "application/json; charset=utf-8"))
         .streaming(stream))

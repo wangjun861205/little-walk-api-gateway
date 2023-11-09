@@ -168,6 +168,15 @@ async fn main() -> std::io::Result<()> {
                                 SMSVerificationCodeClient,
                                 DogClient,
                             >),
+                        )
+                        .route(
+                            "{id}/portrait",
+                            put().to(handlers::dog::update_dog_portrait::<
+                                AuthClient,
+                                UploadClient,
+                                SMSVerificationCodeClient,
+                                DogClient,
+                            >),
                         ),
                 ),
             )

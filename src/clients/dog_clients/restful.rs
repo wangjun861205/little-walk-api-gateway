@@ -73,7 +73,7 @@ impl IDogClient for DogClient {
         owner_id: &str,
         dog_id: &str,
     ) -> Result<bool, Error> {
-        let mut url = self.base_url.join("/dogs")?;
+        let mut url = self.base_url.join("/dogs/exists")?;
         let params =
             vec![format!("owner_id={}", owner_id), format!("id={}", dog_id)];
         url.set_query(Some(&params.join("&")));
@@ -90,11 +90,12 @@ impl IDogClient for DogClient {
         portrait_id: &str,
     ) -> Result<(ByteStream, StatusCode), Error> {
         let url = self.base_url.join(&format!("/dogs/{}/portrait", dog_id))?;
-        let builder = Client::new().request(Method::PUT, url).body(
-            serde_json::to_string(&DogPortraitUpdate {
+        let builder = Client::new()
+            .request(Method::PUT, url)
+            .body(serde_json::to_string(&DogPortraitUpdate {
                 portrait_id: portrait_id.into(),
-            })?,
-        );
+            })?)
+            .header("Content-Type", "application/json");
         request(builder).await
     }
 }
