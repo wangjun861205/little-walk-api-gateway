@@ -102,24 +102,16 @@ where
                 let auth_client = self.auth_client.clone();
                 return Box::pin(async move {
                     match auth_client.verify_token(&token).await {
-                        Ok(res) => {
-                            if let Some(id) = res {
-                                req.headers_mut().insert(
-                                    HeaderName::from_str("X-User-ID").expect(
-                                        "invalid header key: X-User-ID",
-                                    ),
-                                    HeaderValue::from_str(&id).expect(
-                                        &format!(
-                                            "invalid header value: {}",
-                                            id
-                                        ),
-                                    ),
-                                );
-                                return next_service.call(req).await;
-                            }
-                            return Err(ErrorUnauthorized(
-                                "invalid auth token",
-                            ));
+                        Ok(id) => {
+                            req.headers_mut().insert(
+                                HeaderName::from_str("X-User-ID")
+                                    .expect("invalid header key: X-User-ID"),
+                                HeaderValue::from_str(&id).expect(&format!(
+                                    "invalid header value: {}",
+                                    id
+                                )),
+                            );
+                            return next_service.call(req).await;
                         }
                         Err(e) => Err(ErrorUnauthorized(e)),
                     }

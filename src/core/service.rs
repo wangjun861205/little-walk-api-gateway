@@ -58,7 +58,10 @@ where
             .verify_code(phone, verification_code)
             .await?;
         if !is_valid {
-            return Err(Error::InvalidVerificationCode);
+            return Err(Error::new(
+                StatusCode::BAD_REQUEST,
+                "invalid sms verification code",
+            ));
         }
         self.auth_client.signup(phone, password).await
     }
@@ -78,14 +81,17 @@ where
     ) -> Result<ByteStream, Error> {
         let exists = self.auth_client.exists_user(phone).await?;
         if !exists {
-            return Err(Error::UserNotExists);
+            return Err(Error::new(StatusCode::NOT_FOUND, "user not exists"));
         }
         let ok = self
             .sms_verification_code_client
             .verify_code(phone, verification_code)
             .await?;
         if !ok {
-            return Err(Error::InvalidToken);
+            return Err(Error::new(
+                StatusCode::BAD_REQUEST,
+                "invalid sms verification code",
+            ));
         }
         self.auth_client.generate_token(phone).await
     }
@@ -93,7 +99,7 @@ where
     pub async fn verify_auth_token(
         &self,
         token: &str,
-    ) -> Result<Option<String>, Error> {
+    ) -> Result<String, Error> {
         self.auth_client.verify_token(token).await
     }
 
@@ -133,7 +139,7 @@ where
         uid: &str,
         page: i32,
         size: i32,
-    ) -> Result<(ByteStream, StatusCode), Error> {
+    ) -> Result<ByteStream, Error> {
         self.dog_client
             .query_dogs(
                 &DogQuery {
@@ -150,10 +156,10 @@ where
         uid: &str,
         dog_id: &str,
         portrait_id: &str,
-    ) -> Result<(ByteStream, StatusCode), Error> {
+    ) -> Result<ByteStream, Error> {
         let is_owner = self.dog_client.is_owner_of_the_dog(uid, dog_id).await?;
         if !is_owner {
-            return Err(Error::Forbidden);
+            return Err(Error::new(StatusCode::FORBIDDEN, "no permission"));
         }
         self.dog_client
             .update_dog_portrait(dog_id, portrait_id)
@@ -165,5 +171,18 @@ where
         category: &str,
     ) -> Result<ByteStream, Error> {
         self.dog_client.query_breeds(category).await
+    }
+
+    pub async fn update_dog(
+        &self,
+        uid: &str,
+        dog_id: &str,
+        req_body: Bytes,
+    ) -> Result<ByteStream, Error> {
+        let is_owner = self.dog_client.is_owner_of_the_dog(uid, dog_id).await?;
+        if !is_owner {
+            return Err(Error::new(StatusCode::FORBIDDEN, "no permission"));
+        }
+        self.dog_client.update_dog(dog_id, req_body).await
     }
 }

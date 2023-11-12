@@ -1,6 +1,6 @@
+use bytes::Bytes;
+
 use crate::core::error::Error;
-use crate::core::requests::DogUpdate;
-use reqwest::StatusCode;
 
 use super::{requests::DogQuery, service::ByteStream};
 
@@ -20,7 +20,7 @@ pub trait DogClient {
         query: &DogQuery,
         page: i32,
         size: i32,
-    ) -> Result<(ByteStream, StatusCode), Error>;
+    ) -> Result<ByteStream, Error>;
 
     async fn is_owner_of_the_dog(
         &self,
@@ -32,7 +32,13 @@ pub trait DogClient {
         &self,
         dog_id: &str,
         portrait_id: &str,
-    ) -> Result<(ByteStream, StatusCode), Error>;
+    ) -> Result<ByteStream, Error>;
 
     async fn query_breeds(&self, category: &str) -> Result<ByteStream, Error>;
+
+    async fn update_dog(
+        &self,
+        dog_id: &str,
+        body: Bytes,
+    ) -> Result<ByteStream, Error>;
 }

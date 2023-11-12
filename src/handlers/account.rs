@@ -110,7 +110,7 @@ where
 
 #[derive(Debug, Serialize)]
 pub struct VerifyAuthTokenResp {
-    id: Option<String>,
+    id: String,
 }
 
 pub async fn verify_auth_token<A, U, S, D>(

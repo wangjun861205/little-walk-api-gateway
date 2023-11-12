@@ -1,3 +1,5 @@
+#![feature(iter_intersperse)]
+
 mod core;
 
 mod clients;
@@ -51,28 +53,14 @@ async fn main() -> std::io::Result<()> {
         env_logger::Env::new().default_filter_or(config.log_level),
     );
     let service = Data::new(Service::new(
-        AuthClient::new(
-            Url::parse("http://localhost:8001")
-                .expect("invalid auth service url"),
-        ),
-        UploadClient::new(
-            Url::parse("http://localhost:8002")
-                .expect("invalid upload service url"),
-        ),
-        SMSVerificationCodeClient::new(
-            Url::parse("http://localhost:8003")
-                .expect("invalid sms verification code service url"),
-        ),
-        DogClient::new(
-            Url::parse("http://localhost:8004")
-                .expect("invalid dog service url"),
-        ),
+        AuthClient::new("localhost:8001"),
+        UploadClient::new("localhost:8002"),
+        SMSVerificationCodeClient::new("localhost:8003"),
+        DogClient::new("localhost:8004"),
     ));
-    let auth_middleware_factory =
-        Arc::new(AuthMiddlewareFactory::new(AuthClient::new(
-            Url::parse("http://localhost:8001")
-                .expect("invalid auth service url"),
-        )));
+    let auth_middleware_factory = Arc::new(AuthMiddlewareFactory::new(
+        AuthClient::new("localhost:8001"),
+    ));
     HttpServer::new(move || {
         let logger = Logger::new(&config.log_format)
             .log_target("little-walk-api-gateway");
@@ -181,6 +169,15 @@ async fn main() -> std::io::Result<()> {
                         .route(
                             "breeds",
                             get().to(handlers::dog::query_breeds::<
+                                AuthClient,
+                                UploadClient,
+                                SMSVerificationCodeClient,
+                                DogClient,
+                            >),
+                        )
+                        .route(
+                            "{id}",
+                            put().to(handlers::dog::update_dog::<
                                 AuthClient,
                                 UploadClient,
                                 SMSVerificationCodeClient,

@@ -1,6 +1,6 @@
 use crate::core::service::ByteStream;
 use crate::core::upload_client::UploadClient as IUploadClient;
-use crate::utils::restful::make_request;
+use crate::utils::restful::{make_request, parse_url};
 use crate::{core::error::Error, utils::restful::request};
 use reqwest::{
     multipart::{Form, Part},
@@ -9,12 +9,14 @@ use reqwest::{
 use url::Url;
 
 pub struct UploadClient {
-    base_url: Url,
+    host_and_port: String,
 }
 
 impl UploadClient {
-    pub fn new(base_url: Url) -> Self {
-        Self { base_url }
+    pub fn new(host_and_port: &str) -> Self {
+        Self {
+            host_and_port: host_and_port.to_string(),
+        }
     }
 }
 
@@ -26,24 +28,21 @@ impl IUploadClient for UploadClient {
         size_limit: usize,
         stream: ByteStream,
     ) -> Result<ByteStream, Error> {
-        let url = self
-            .base_url
-            .join("/files")
-            .map_err(|e| Error::InvalidURL(e.to_string()))?;
+        let url = parse_url(&self.host_and_port, "/files", None)?;
         let builder = Client::new()
             .request(Method::POST, url)
             .header("X-User-ID", user_id)
             .header("Content-Type", content_type_header)
             .header("X-Size-Limit", size_limit.to_string())
             .body(Body::wrap_stream(stream));
-        let (stream, _) = request(builder).await?;
-        Ok(stream)
+        request(builder).await
     }
     async fn download(&self, id: &str) -> Result<ByteStream, Error> {
-        let url = self
-            .base_url
-            .join(format!("/files/{}", id).as_str())
-            .map_err(|e| Error::InvalidURL(e.to_string()))?;
+        let url = parse_url(
+            &self.host_and_port,
+            format!("/files/{}", id).as_str(),
+            None,
+        )?;
         make_request(
             Method::GET,
             url,

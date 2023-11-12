@@ -1,21 +1,26 @@
 use crate::{
     core::{
-        service::ByteStream,
+        error::Error, service::ByteStream,
         sms_verification_code_client::SMSVerificationCodeClient as ISMSVerificationCodeClient,
     },
-    utils::{io::stream_to_bytes, restful::make_request},
+    utils::{
+        io::stream_to_bytes,
+        restful::{make_request, parse_url},
+    },
 };
+use http::StatusCode;
 use reqwest::Method;
 use serde::Deserialize;
-use url::Url;
 
 pub struct SMSVerificationCodeClient {
-    base_url: Url,
+    host_and_port: String,
 }
 
 impl SMSVerificationCodeClient {
-    pub fn new(base_url: Url) -> Self {
-        Self { base_url }
+    pub fn new(host_and_port: &str) -> Self {
+        Self {
+            host_and_port: host_and_port.to_string(),
+        }
     }
 }
 
@@ -29,9 +34,11 @@ impl ISMSVerificationCodeClient for SMSVerificationCodeClient {
         &self,
         phone: &str,
     ) -> Result<ByteStream, crate::core::error::Error> {
-        let url = self
-            .base_url
-            .join(format!("/phones/{}/codes", phone).as_str())?;
+        let url = parse_url(
+            &&self.host_and_port,
+            format!("/phones/{}/codes", phone).as_str(),
+            None,
+        )?;
         make_request(
             Method::PUT,
             url,
@@ -48,8 +55,10 @@ impl ISMSVerificationCodeClient for SMSVerificationCodeClient {
         phone: &str,
         code: &str,
     ) -> Result<bool, crate::core::error::Error> {
-        let url = self.base_url.join(
+        let url = parse_url(
+            &self.host_and_port,
             format!("/phones/{}/codes/{}/verification", phone, code).as_str(),
+            None,
         )?;
         let stream = make_request(
             Method::PUT,
@@ -61,7 +70,8 @@ impl ISMSVerificationCodeClient for SMSVerificationCodeClient {
         )
         .await?;
         let bs = stream_to_bytes(stream).await?;
-        let result: VerifyCodeResp = serde_json::from_slice(&bs)?;
+        let result: VerifyCodeResp = serde_json::from_slice(&bs)
+            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
         Ok(result.is_ok)
     }
 }

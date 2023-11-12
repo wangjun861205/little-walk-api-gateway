@@ -7,7 +7,9 @@ use reqwest::{
     RequestBuilder, StatusCode,
 };
 use serde::Serialize;
+use std::collections::HashMap;
 use std::time::Duration;
+use url::Url;
 
 pub(crate) async fn make_request<U, P, B>(
     method: Method,
@@ -42,50 +44,62 @@ where
     let resp = builder
         .send()
         .await
-        .map_err(|e| Error::NetworkFailure(e.to_string()))?;
+        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     if !resp.status().is_success() {
+        let status_code = resp.status();
         let reason = resp
             .text()
             .await
-            .map_err(|e| Error::NetworkFailure(e.to_string()))?;
-        return Err(Error::AuthServiceError(reason));
+            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        return Err(Error::new(status_code, reason));
     }
-    Ok(Box::pin(
-        resp.bytes_stream()
-            .map_err(|e| Error::NetworkFailure(e.to_string())),
-    ))
+    Ok(Box::pin(resp.bytes_stream().map_err(|e| {
+        Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+    })))
 }
 
-pub async fn request(
-    builder: RequestBuilder,
-) -> Result<(ByteStream, StatusCode), Error> {
+pub async fn request(builder: RequestBuilder) -> Result<ByteStream, Error> {
     let resp = builder
         .send()
         .await
-        .map_err(|e| Error::NetworkFailure(e.to_string()))?;
-    // if !resp.status().is_success() {
-    //     let reason = resp
-    //         .text()
-    //         .await
-    //         .map_err(|e| Error::NetworkFailure(e.to_string()))?;
-    //     return Err(Error::AuthServiceError(reason));
-    // }
-    let status_code = resp.status();
-    Ok((
-        Box::pin(
-            resp.bytes_stream()
-                .map_err(|e| Error::NetworkFailure(e.to_string())),
-        ),
-        status_code,
-    ))
+        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    if !resp.status().is_success() {
+        let status_code = resp.status();
+        let reason = resp
+            .text()
+            .await
+            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        return Err(Error::new(status_code, reason));
+    }
+    Ok(Box::pin(resp.bytes_stream().map_err(|e| {
+        Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+    })))
 }
 
 pub fn extract_user_id(req: &HttpRequest) -> Result<&str, Error> {
     let user_id = req
         .headers()
         .get("X-User-ID")
-        .ok_or(Error::NoUserID)?
+        .ok_or(Error::new(StatusCode::UNAUTHORIZED, "no user id"))?
         .to_str()
-        .map_err(|e| Error::InvalidUserID(e.to_string()))?;
+        .map_err(|e| Error::new(StatusCode::UNAUTHORIZED, e))?;
     Ok(user_id)
+}
+
+pub fn parse_url(
+    host_and_port: &str,
+    path: &str,
+    params: Option<HashMap<&str, &str>>,
+) -> Result<Url, Error> {
+    let query: Option<String> = params.map(|ps| {
+        ps.into_iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .intersperse("&".into())
+            .collect()
+    });
+    let mut url = Url::parse(&format!("http://{}", host_and_port))
+        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    url.set_path(path);
+    url.set_query(query.as_deref());
+    Ok(url)
 }

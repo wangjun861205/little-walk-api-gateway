@@ -1,7 +1,7 @@
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use crate::utils::io::stream_to_bytes;
-use crate::utils::restful::make_request;
+use crate::utils::restful::{make_request, parse_url};
 use crate::{
     core::auth_client::AuthClient as IAuthClient, utils::restful::request,
 };
@@ -12,12 +12,14 @@ use url::Url;
 
 #[derive(Clone)]
 pub struct AuthClient {
-    base_url: Url,
+    host_and_port: String,
 }
 
 impl AuthClient {
-    pub fn new(base_url: Url) -> Self {
-        Self { base_url }
+    pub fn new(host_and_port: &str) -> Self {
+        Self {
+            host_and_port: host_and_port.to_string(),
+        }
     }
 }
 
@@ -40,15 +42,16 @@ pub struct SignupReq {
 
 #[derive(Debug, Deserialize)]
 pub struct VerifyTokenResp {
-    id: Option<String>,
+    id: String,
 }
 
 impl IAuthClient for AuthClient {
     async fn exists_user(&self, phone: &str) -> Result<bool, Error> {
-        let url = self
-            .base_url
-            .join(&format!("/phones/{}/exists", phone))
-            .map_err(|e| Error::InvalidURL(e.to_string()))?;
+        let url = parse_url(
+            &self.host_and_port,
+            &format!("/phones/{}/exists", phone),
+            None,
+        )?;
         let body = make_request(
             Method::GET,
             url,
@@ -60,15 +63,16 @@ impl IAuthClient for AuthClient {
         .await?;
         let bs = stream_to_bytes(body).await?;
         let result: ExistsUserResp = from_slice(&bs)
-            .map_err(|e| Error::InvalidResponse(e.to_string()))?;
+            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
         Ok(result.exists)
     }
 
     async fn generate_token(&self, phone: &str) -> Result<ByteStream, Error> {
-        let url = self
-            .base_url
-            .join(&format!("/phones/{}/tokens", phone))
-            .map_err(|e| Error::InvalidURL(e.to_string()))?;
+        let url = parse_url(
+            &self.host_and_port,
+            &format!("/phones/{}/tokens", phone),
+            None,
+        )?;
         make_request(
             Method::PUT,
             url,
@@ -85,10 +89,7 @@ impl IAuthClient for AuthClient {
         phone: &str,
         password: &str,
     ) -> Result<ByteStream, Error> {
-        let url = self
-            .base_url
-            .join("/login")
-            .map_err(|e| Error::InvalidURL(e.to_string()))?;
+        let url = parse_url(&self.host_and_port, "/login", None)?;
         make_request(
             Method::PUT,
             url,
@@ -99,7 +100,9 @@ impl IAuthClient for AuthClient {
                     phone: phone.into(),
                     password: password.into(),
                 })
-                .map_err(|e| Error::InvalidRequestBody(e.to_string()))?,
+                .map_err(|e| {
+                    Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+                })?,
             ),
             None,
         )
@@ -111,10 +114,7 @@ impl IAuthClient for AuthClient {
         phone: &str,
         password: &str,
     ) -> Result<ByteStream, Error> {
-        let url = self
-            .base_url
-            .join("/signup")
-            .map_err(|e| Error::InvalidURL(e.to_string()))?;
+        let url = parse_url(&self.host_and_port, "/signup", None)?;
         make_request(
             Method::POST,
             url,
@@ -125,26 +125,26 @@ impl IAuthClient for AuthClient {
                     phone: phone.into(),
                     password: password.into(),
                 })
-                .map_err(|e| Error::InvalidRequestBody(e.to_string()))?,
+                .map_err(|e| {
+                    Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+                })?,
             ),
             None,
         )
         .await
     }
 
-    async fn verify_token(&self, token: &str) -> Result<Option<String>, Error> {
-        let url = self
-            .base_url
-            .join(&format!("/tokens/{}/verification", token))
-            .map_err(|e| Error::InvalidURL(e.to_string()))?;
+    async fn verify_token(&self, token: &str) -> Result<String, Error> {
+        let url = parse_url(
+            &self.host_and_port,
+            &format!("/tokens/{}/verification", token),
+            None,
+        )?;
         let builder = Client::new().request(Method::GET, url);
-        let (stream, status) = request(builder).await?;
-        if status == StatusCode::UNAUTHORIZED {
-            return Err(Error::InvalidToken);
-        }
+        let stream = request(builder).await?;
         let bs = stream_to_bytes(stream).await?;
         let result: VerifyTokenResp = serde_json::from_slice(&bs)
-            .map_err(|e| Error::InvalidResponse(e.to_string()))?;
+            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
         Ok(result.id)
     }
 }

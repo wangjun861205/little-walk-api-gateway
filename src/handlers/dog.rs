@@ -2,6 +2,7 @@ use actix_web::{
     web::{Bytes, Data, Json, Path, Payload, Query},
     HttpRequest, HttpResponse,
 };
+use http::StatusCode;
 
 use crate::{
     core::{
@@ -32,11 +33,11 @@ where
     let owner_id = req
         .headers()
         .get("X-User-ID")
-        .ok_or(Error::InvalidRequestHeader("X-User-ID".into()))?
+        .ok_or(Error::new(StatusCode::UNAUTHORIZED, "no X-User-ID"))?
         .to_str()
-        .map_err(|e| Error::InvalidRequestHeader(e.to_string()))?;
+        .map_err(|e| Error::new(StatusCode::BAD_REQUEST, e))?;
     let body: Vec<Result<Bytes, Error>> = payload
-        .map_err(|e| Error::NetworkFailure(e.to_string()))
+        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))
         .collect()
         .await;
     let body = Box::pin(stream::iter(body.into_iter()));
@@ -58,19 +59,20 @@ where
     let user_id = req
         .headers()
         .get("X-User-ID")
-        .ok_or(Error::InvalidRequestHeader("X-User-ID".into()))?
+        .ok_or(Error::new(StatusCode::FORBIDDEN, "no X-User-ID"))?
         .to_str()
-        .map_err(|e| Error::InvalidRequestHeader(e.to_string()))?;
+        .map_err(|e| Error::new(StatusCode::BAD_REQUEST, e))?;
     let content_type_header = req
         .headers()
         .get("Content-Type")
-        .ok_or(Error::InvalidRequestHeader(
-            "Content-Type header is required".into(),
+        .ok_or(Error::new(
+            StatusCode::BAD_REQUEST,
+            "Content-Type header is required",
         ))?
         .to_str()
-        .map_err(|e| Error::InvalidRequestHeader(e.to_string()))?;
+        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     let body: Vec<Result<Bytes, Error>> = payload
-        .map_err(|e| Error::NetworkFailure(e.to_string()))
+        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))
         .collect()
         .await;
     let body = Box::pin(stream::iter(body.into_iter()));
@@ -106,8 +108,8 @@ where
     D: DogClient,
 {
     let uid = extract_user_id(&req)?;
-    let (stream, status) = service.my_dogs(uid, page.page, page.size).await?;
-    Ok(HttpResponse::build(status)
+    let stream = service.my_dogs(uid, page.page, page.size).await?;
+    Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", "application/json; charset=utf-8"))
         .streaming(stream))
 }
@@ -130,10 +132,10 @@ where
     D: DogClient,
 {
     let uid = extract_user_id(&req)?;
-    let (stream, status) = service
+    let stream = service
         .update_dog_portrait(uid, &dog_id.as_ref().0, &portrait_id)
         .await?;
-    Ok(HttpResponse::build(status)
+    Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", "application/json; charset=utf-8"))
         .streaming(stream))
 }
@@ -157,4 +159,22 @@ where
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", "application/json; charset=utf-8"))
         .streaming(stream))
+}
+
+pub async fn update_dog<A, U, S, D>(
+    service: Data<Service<A, U, S, D>>,
+    dog_id: Path<(String,)>,
+    req: HttpRequest,
+    body: Bytes,
+) -> Result<HttpResponse, Error>
+where
+    A: AuthClient,
+    U: UploadClient,
+    S: SMSVerificationCodeClient,
+    D: DogClient,
+{
+    let uid = extract_user_id(&req)?;
+    let dog_id = &dog_id.as_ref().0;
+    let stream = service.update_dog(uid, dog_id, body).await?;
+    Ok(HttpResponse::Ok().streaming(stream))
 }
