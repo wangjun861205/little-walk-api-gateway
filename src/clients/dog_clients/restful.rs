@@ -98,4 +98,19 @@ impl IDogClient for DogClient {
             .header("Content-Type", "application/json");
         request(builder).await
     }
+
+    async fn query_breeds(&self, category: &str) -> Result<ByteStream, Error> {
+        let url = self
+            .base_url
+            .join(&format!("/breeds?category_eq={}", category))?;
+        let builder = Client::new().request(Method::GET, url);
+        let (stream, status) = request(builder).await?;
+        if status != StatusCode::OK {
+            let bs = stream_to_bytes(stream).await?;
+            let err_str = String::from_utf8(bs.to_vec())
+                .map_err(|e| Error::InvalidResponse(e.to_string()))?;
+            return Err(Error::DogServiceError(err_str));
+        }
+        Ok(stream)
+    }
 }

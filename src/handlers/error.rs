@@ -10,6 +10,10 @@ impl ResponseError for Error {
                 HttpResponse::InternalServerError()
                     .body(BoxBody::new(cause.to_owned()))
             }
+            Error::DogServiceError(cause) => {
+                HttpResponse::InternalServerError()
+                    .body(BoxBody::new(cause.to_owned()))
+            }
             Error::InvalidRequestBody(cause) => {
                 HttpResponse::BadRequest().body(BoxBody::new(cause.to_owned()))
             }

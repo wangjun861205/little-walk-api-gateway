@@ -8,6 +8,7 @@ pub enum Error {
     InvalidURL(String),
     NetworkFailure(String),
     AuthServiceError(String),
+    DogServiceError(String),
     InvalidResponse(String),
     InvalidRequestBody(String),
     InvalidRequestHeader(String),
@@ -28,6 +29,9 @@ impl Display for Error {
             }
             Self::AuthServiceError(cause) => {
                 write!(f, "Auth service error: {}", cause)
+            }
+            Self::DogServiceError(cause) => {
+                write!(f, "Dog service error: {}", cause)
             }
             Self::InvalidResponse(cause) => {
                 write!(f, "Invalid response: {}", cause)

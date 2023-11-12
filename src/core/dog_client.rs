@@ -33,4 +33,6 @@ pub trait DogClient {
         dog_id: &str,
         portrait_id: &str,
     ) -> Result<(ByteStream, StatusCode), Error>;
+
+    async fn query_breeds(&self, category: &str) -> Result<ByteStream, Error>;
 }

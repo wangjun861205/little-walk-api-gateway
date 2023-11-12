@@ -159,4 +159,11 @@ where
             .update_dog_portrait(dog_id, portrait_id)
             .await
     }
+
+    pub async fn dog_breeds(
+        &self,
+        category: &str,
+    ) -> Result<ByteStream, Error> {
+        self.dog_client.query_breeds(category).await
+    }
 }

@@ -177,6 +177,15 @@ async fn main() -> std::io::Result<()> {
                                 SMSVerificationCodeClient,
                                 DogClient,
                             >),
+                        )
+                        .route(
+                            "breeds",
+                            get().to(handlers::dog::query_breeds::<
+                                AuthClient,
+                                UploadClient,
+                                SMSVerificationCodeClient,
+                                DogClient,
+                            >),
                         ),
                 ),
             )

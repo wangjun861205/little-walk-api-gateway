@@ -137,3 +137,24 @@ where
         .insert_header(("Content-Type", "application/json; charset=utf-8"))
         .streaming(stream))
 }
+
+#[derive(Debug, Deserialize)]
+pub struct BreedQuery {
+    category_eq: String,
+}
+
+pub async fn query_breeds<A, U, S, D>(
+    service: Data<Service<A, U, S, D>>,
+    Query(BreedQuery { category_eq }): Query<BreedQuery>,
+) -> Result<HttpResponse, Error>
+where
+    A: AuthClient,
+    U: UploadClient,
+    S: SMSVerificationCodeClient,
+    D: DogClient,
+{
+    let stream = service.dog_breeds(&category_eq).await?;
+    Ok(HttpResponse::Ok()
+        .insert_header(("Content-Type", "application/json; charset=utf-8"))
+        .streaming(stream))
+}
