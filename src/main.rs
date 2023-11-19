@@ -26,7 +26,6 @@ use middlewares::auth::AuthMiddlewareFactory;
 use nb_from_env::{FromEnv, FromEnvDerive};
 use std::fs::create_dir_all;
 use std::sync::Arc;
-use url::Url;
 
 #[derive(FromEnvDerive)]
 pub struct Config {
