@@ -8,7 +8,7 @@ use futures::Stream;
 use reqwest::StatusCode;
 use std::pin::Pin;
 
-use super::{dog_client::DogClient, requests::DogUpdate};
+use super::dog_client::DogClient;
 
 pub type ByteStream =
     Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send + Sync>>;

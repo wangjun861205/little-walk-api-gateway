@@ -5,3 +5,4 @@ pub mod requests;
 pub mod service;
 pub mod sms_verification_code_client;
 pub mod upload_client;
+pub mod walk_request_client;
