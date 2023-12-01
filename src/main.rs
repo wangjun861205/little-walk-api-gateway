@@ -187,13 +187,23 @@ async fn main() -> std::io::Result<()> {
                                 >),
                             ),
                     )
-                    .service(scope("/walk_requests").route(
-                        "nearby",
-                        get().to(handlers::common::pass_through(
-                            "localhost:8005",
-                            None,
-                        )),
-                    )),
+                    .service(
+                        scope("/walk_requests")
+                            .route(
+                                "nearby",
+                                get().to(handlers::common::pass_through(
+                                    "localhost:8005",
+                                    None,
+                                )),
+                            )
+                            .route(
+                                "",
+                                post().to(handlers::common::pass_through(
+                                    "localhost:8005",
+                                    None,
+                                )),
+                            ),
+                    ),
             )
     })
     .bind(config.listen_address)?
