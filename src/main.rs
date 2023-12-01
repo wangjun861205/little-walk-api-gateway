@@ -190,8 +190,8 @@ async fn main() -> std::io::Result<()> {
                     .service(scope("/walk_requests").route(
                         "nearby",
                         get().to(handlers::common::pass_through(
-                            "http://localhost:8005".to_owned(),
-                            Method::GET,
+                            "localhost:8005",
+                            None,
                         )),
                     )),
             )

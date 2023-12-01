@@ -18,19 +18,42 @@ pub struct Pagination {
     pub size: i32,
 }
 
+fn parse_url(
+    host_and_port: &str,
+    path: &str,
+    query: &str,
+) -> Result<Url, Error> {
+    let mut base_url = Url::parse(&format!("http://{}", host_and_port))
+        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let mut url = base_url
+        .join(path)
+        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    if query != "" {
+        url.set_query(Some(query));
+    }
+    Ok(url)
+}
+
 pub(crate) fn pass_through(
-    pass_to: String,
-    method: Method,
+    host_and_port: &str,
+    path: Option<&str>,
 ) -> impl Handler<(HttpRequest, Bytes), Output = Result<HttpResponse, Error>> {
+    let host_and_port = host_and_port.to_owned();
+    let path = path.map(|p| p.to_owned());
     move |req: HttpRequest,
           bytes: Bytes|
           -> Pin<Box<dyn Future<Output = Result<HttpResponse, Error>>>> {
-        let pass_to = pass_to.clone();
+        let host_and_port = host_and_port.clone();
+        let path = if let Some(path) = path.clone() {
+            path.clone()
+        } else {
+            req.path().to_owned()
+        };
         let mut headers = HeaderMap::new();
         for (name, value) in req.headers() {
             headers.insert(name, value.clone());
         }
-        match Url::parse(&pass_to) {
+        match parse_url(&host_and_port, &path, req.query_string()) {
             Ok(mut url) => {
                 url.set_query(if req.query_string() != "" {
                     Some(req.query_string())
@@ -38,15 +61,15 @@ pub(crate) fn pass_through(
                     None
                 });
                 let mut builder;
-                match method {
-                    Method::GET | Method::OPTIONS | Method::TRACE => {
+                match req.method() {
+                    &Method::GET | &Method::OPTIONS | &Method::TRACE => {
                         builder = Client::new().get(url)
                     }
-                    Method::POST => builder = Client::new().post(url),
-                    Method::PUT => builder = Client::new().put(url),
-                    Method::DELETE => builder = Client::new().delete(url),
-                    Method::HEAD => builder = Client::new().head(url),
-                    Method::PATCH => builder = Client::new().patch(url),
+                    &Method::POST => builder = Client::new().post(url),
+                    &Method::PUT => builder = Client::new().put(url),
+                    &Method::DELETE => builder = Client::new().delete(url),
+                    &Method::HEAD => builder = Client::new().head(url),
+                    &Method::PATCH => builder = Client::new().patch(url),
                     _ => {
                         return Box::pin(async {
                             Err(Error::new(
