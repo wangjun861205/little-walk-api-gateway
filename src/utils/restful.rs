@@ -2,12 +2,12 @@ use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use actix_web::HttpRequest;
 use futures::TryStreamExt;
+use http::StatusCode;
 use reqwest::{
     header::HeaderMap, multipart::Form, Body, Client, IntoUrl, Method,
-    RequestBuilder, StatusCode,
+    RequestBuilder,
 };
 use serde::Serialize;
-use std::collections::HashMap;
 use std::time::Duration;
 use url::Url;
 
@@ -41,38 +41,34 @@ where
     if let Some(multipart) = multipart {
         builder = builder.multipart(multipart);
     }
-    let resp = builder
-        .send()
-        .await
-        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let resp = builder.send().await.map_err(|e| {
+        Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+    })?;
     if !resp.status().is_success() {
         let status_code = resp.status();
-        let reason = resp
-            .text()
-            .await
-            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-        return Err(Error::new(status_code, reason));
+        let reason = resp.text().await.map_err(|e| {
+            Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+        })?;
+        return Err(Error::new(status_code.as_u16(), reason));
     }
     Ok(Box::pin(resp.bytes_stream().map_err(|e| {
-        Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+        Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
     })))
 }
 
 pub async fn request(builder: RequestBuilder) -> Result<ByteStream, Error> {
-    let resp = builder
-        .send()
-        .await
-        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let resp = builder.send().await.map_err(|e| {
+        Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+    })?;
     if !resp.status().is_success() {
         let status_code = resp.status();
-        let reason = resp
-            .text()
-            .await
-            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-        return Err(Error::new(status_code, reason));
+        let reason = resp.text().await.map_err(|e| {
+            Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+        })?;
+        return Err(Error::new(status_code.as_u16(), reason));
     }
     Ok(Box::pin(resp.bytes_stream().map_err(|e| {
-        Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+        Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
     })))
 }
 
@@ -80,26 +76,22 @@ pub fn extract_user_id(req: &HttpRequest) -> Result<&str, Error> {
     let user_id = req
         .headers()
         .get("X-User-ID")
-        .ok_or(Error::new(StatusCode::UNAUTHORIZED, "no user id"))?
+        .ok_or(Error::new(StatusCode::UNAUTHORIZED.as_u16(), "no user id"))?
         .to_str()
-        .map_err(|e| Error::new(StatusCode::UNAUTHORIZED, e))?;
+        .map_err(|e| Error::new(StatusCode::UNAUTHORIZED.as_u16(), e))?;
     Ok(user_id)
 }
 
 pub fn parse_url(
     host_and_port: &str,
     path: &str,
-    params: Option<HashMap<&str, &str>>,
+    params: Option<&str>,
 ) -> Result<Url, Error> {
-    let query: Option<String> = params.map(|ps| {
-        ps.into_iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .intersperse("&".into())
-            .collect()
-    });
-    let mut url = Url::parse(&format!("http://{}", host_and_port))
-        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let mut url =
+        Url::parse(&format!("http://{}", host_and_port)).map_err(|e| {
+            Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+        })?;
     url.set_path(path);
-    url.set_query(query.as_deref());
+    url.set_query(params);
     Ok(url)
 }

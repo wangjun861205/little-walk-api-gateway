@@ -18,11 +18,11 @@ use clients::{
     auth_clients::restful::AuthClient, dog_clients::restful::DogClient,
     sms_verification_code_clients::restful::SMSVerificationCodeClient,
     upload_clients::restful::UploadClient,
+    walk_request_clients::restful::WalkRequestClient,
 };
 use core::service::Service;
 use docs::api::generate_api_doc;
 use handlers::account::{login_by_password, login_by_sms_verification_code};
-use http::Method;
 use middlewares::auth::AuthMiddlewareFactory;
 use nb_from_env::{FromEnv, FromEnvDerive};
 use std::fs::create_dir_all;
@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
         UploadClient::new("localhost:8002"),
         SMSVerificationCodeClient::new("localhost:8003"),
         DogClient::new("localhost:8004"),
+        WalkRequestClient::new("localhost:8005"),
     ));
     let auth_middleware_factory = Arc::new(AuthMiddlewareFactory::new(
         AuthClient::new("localhost:8001"),
@@ -78,6 +79,7 @@ async fn main() -> std::io::Result<()> {
                                     UploadClient,
                                     SMSVerificationCodeClient,
                                     DogClient,
+                                    WalkRequestClient,
                                 >),
                             )
                             .route(
@@ -87,6 +89,7 @@ async fn main() -> std::io::Result<()> {
                                     UploadClient,
                                     SMSVerificationCodeClient,
                                     DogClient,
+                                    WalkRequestClient,
                                 >),
                             ),
                     )
@@ -97,6 +100,7 @@ async fn main() -> std::io::Result<()> {
                             UploadClient,
                             SMSVerificationCodeClient,
                             DogClient,
+                            WalkRequestClient,
                         >),
                     )
                     .route(
@@ -106,6 +110,7 @@ async fn main() -> std::io::Result<()> {
                             UploadClient,
                             SMSVerificationCodeClient,
                             DogClient,
+                            WalkRequestClient,
                         >),
                     )
                     .route(
@@ -115,6 +120,7 @@ async fn main() -> std::io::Result<()> {
                             UploadClient,
                             SMSVerificationCodeClient,
                             DogClient,
+                            WalkRequestClient,
                         >),
                     ),
             )
@@ -130,7 +136,15 @@ async fn main() -> std::io::Result<()> {
                                     UploadClient,
                                     SMSVerificationCodeClient,
                                     DogClient,
+                                    WalkRequestClient,
                                 >),
+                            )
+                            .route(
+                                "",
+                                get().to(handlers::common::pass_through(
+                                    "localhost:8004",
+                                    Some("/dogs"),
+                                )),
                             )
                             .route(
                                 "portraits",
@@ -139,6 +153,7 @@ async fn main() -> std::io::Result<()> {
                                     UploadClient,
                                     SMSVerificationCodeClient,
                                     DogClient,
+                                    WalkRequestClient,
                                 >),
                             )
                             .route(
@@ -148,16 +163,15 @@ async fn main() -> std::io::Result<()> {
                                     UploadClient,
                                     SMSVerificationCodeClient,
                                     DogClient,
+                                    WalkRequestClient,
                                 >),
                             )
                             .route(
                                 "mine",
-                                get().to(handlers::dog::my_dogs::<
-                                    AuthClient,
-                                    UploadClient,
-                                    SMSVerificationCodeClient,
-                                    DogClient,
-                                >),
+                                get().to(handlers::common::pass_through(
+                                    "localhost:8004",
+                                    None,
+                                )),
                             )
                             .route(
                                 "{id}/portrait",
@@ -166,6 +180,7 @@ async fn main() -> std::io::Result<()> {
                                     UploadClient,
                                     SMSVerificationCodeClient,
                                     DogClient,
+                                    WalkRequestClient,
                                 >),
                             )
                             .route(
@@ -175,6 +190,7 @@ async fn main() -> std::io::Result<()> {
                                     UploadClient,
                                     SMSVerificationCodeClient,
                                     DogClient,
+                                    WalkRequestClient,
                                 >),
                             )
                             .route(
@@ -184,6 +200,7 @@ async fn main() -> std::io::Result<()> {
                                     UploadClient,
                                     SMSVerificationCodeClient,
                                     DogClient,
+                                    WalkRequestClient,
                                 >),
                             ),
                     )

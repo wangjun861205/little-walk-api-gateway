@@ -70,8 +70,10 @@ impl ISMSVerificationCodeClient for SMSVerificationCodeClient {
         )
         .await?;
         let bs = stream_to_bytes(stream).await?;
-        let result: VerifyCodeResp = serde_json::from_slice(&bs)
-            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let result: VerifyCodeResp =
+            serde_json::from_slice(&bs).map_err(|e| {
+                Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+            })?;
         Ok(result.is_ok)
     }
 }

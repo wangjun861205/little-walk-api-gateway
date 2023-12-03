@@ -1,13 +1,20 @@
+use bytes::Bytes;
+use futures::{stream, Stream, StreamExt, TryStreamExt};
 use http::{request, StatusCode};
+use nb_to_query::ToQuery;
 use url::Url;
 
 use crate::{
     core::{
         error::Error,
-        walk_request_client::WalkRequestClient as IWalkRequestClient,
+        walk_request_client::{UpstreamWalkRequest, WalkRequest},
+        walk_request_client::{
+            WalkRequestClient as IWalkRequestClient, WalkRequestQuery,
+        },
     },
-    utils::restful::request,
+    utils::restful::{parse_url, request},
 };
+
 pub(crate) struct WalkRequestClient {
     host_and_port: String,
 }
@@ -21,33 +28,26 @@ impl WalkRequestClient {
 }
 
 impl IWalkRequestClient for WalkRequestClient {
-    async fn nearby_requests(
+    async fn query_walk_requests(
         &self,
-        lat: f64,
-        long: f64,
-        page: i32,
-        size: i32,
-    ) -> Result<crate::core::service::ByteStream, crate::core::error::Error>
-    {
-        request(
-            reqwest::Client::new().get(
-                Url::parse_with_params(
-                    &format!(
-                        "http://{}/walk_requests/nearby",
-                        self.host_and_port
-                    ),
-                    vec![
-                        ("lat", lat.to_string()),
-                        ("long", long.to_string()),
-                        ("page", page.to_string()),
-                        ("size", size.to_string()),
-                    ],
-                )
-                .map_err(|e| {
-                    Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
-                })?,
-            ),
-        )
-        .await
+        query: WalkRequestQuery,
+    ) -> Result<Vec<UpstreamWalkRequest>, Error> {
+        let url = parse_url(
+            &self.host_and_port,
+            "/apis/walk_requests/nearby",
+            query.to_query("").as_deref(),
+        )?;
+        let bytes: Vec<u8> = request(reqwest::Client::new().get(url))
+            .await?
+            .try_collect::<Vec<Bytes>>()
+            .await?
+            .into_iter()
+            .flat_map(|b| b.to_vec())
+            .collect();
+        let reqs: Vec<UpstreamWalkRequest> = serde_json::from_slice(&bytes)
+            .map_err(|e| {
+                Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+            })?;
+        Ok(reqs)
     }
 }

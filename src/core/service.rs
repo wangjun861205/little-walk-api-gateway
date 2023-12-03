@@ -4,46 +4,60 @@ use crate::core::{
     upload_client::UploadClient,
 };
 use bytes::Bytes;
-use futures::Stream;
+use futures::{
+    future::{join_all, try_join_all},
+    Future, Stream,
+};
 use reqwest::StatusCode;
 use std::pin::Pin;
 
-use super::dog_client::DogClient;
+use super::{
+    common::Pagination,
+    dog_client::{DogClient, UpstreamDog},
+    walk_request_client::{
+        Nearby, WalkRequest, WalkRequestClient, WalkRequestQuery,
+    },
+};
 
 pub type ByteStream =
     Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send + Sync>>;
 
-pub struct Service<A, U, S, D>
+pub struct Service<A, U, S, D, R>
 where
     A: AuthClient,
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
+    R: WalkRequestClient,
 {
     auth_client: A,
     upload_client: U,
     sms_verification_code_client: S,
     dog_client: D,
+    walk_request_client: R,
 }
 
-impl<A, U, S, D> Service<A, U, S, D>
+impl<A, U, S, D, R> Service<A, U, S, D, R>
 where
     A: AuthClient,
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
+    R: WalkRequestClient,
 {
     pub fn new(
         auth_client: A,
         upload_client: U,
         sms_verification_code_client: S,
         dog_client: D,
+        walk_request_client: R,
     ) -> Self {
         Self {
             auth_client,
             upload_client,
             sms_verification_code_client,
             dog_client,
+            walk_request_client,
         }
     }
 
@@ -59,7 +73,7 @@ where
             .await?;
         if !is_valid {
             return Err(Error::new(
-                StatusCode::BAD_REQUEST,
+                StatusCode::BAD_REQUEST.as_u16(),
                 "invalid sms verification code",
             ));
         }
@@ -81,7 +95,10 @@ where
     ) -> Result<ByteStream, Error> {
         let exists = self.auth_client.exists_user(phone).await?;
         if !exists {
-            return Err(Error::new(StatusCode::NOT_FOUND, "user not exists"));
+            return Err(Error::new(
+                StatusCode::NOT_FOUND.as_u16(),
+                "user not exists",
+            ));
         }
         let ok = self
             .sms_verification_code_client
@@ -89,7 +106,7 @@ where
             .await?;
         if !ok {
             return Err(Error::new(
-                StatusCode::BAD_REQUEST,
+                StatusCode::BAD_REQUEST.as_u16(),
                 "invalid sms verification code",
             ));
         }
@@ -139,15 +156,13 @@ where
         uid: &str,
         page: i32,
         size: i32,
-    ) -> Result<ByteStream, Error> {
+    ) -> Result<Vec<UpstreamDog>, Error> {
         self.dog_client
-            .query_dogs(
-                &DogQuery {
-                    owner_id_eq: Some(uid.to_owned()),
-                },
-                page,
-                size,
-            )
+            .query_dogs(&DogQuery {
+                owner_id: Some(uid.to_owned()),
+                pagination: Some(Pagination { page, size }),
+                ..Default::default()
+            })
             .await
     }
 
@@ -159,7 +174,10 @@ where
     ) -> Result<ByteStream, Error> {
         let is_owner = self.dog_client.is_owner_of_the_dog(uid, dog_id).await?;
         if !is_owner {
-            return Err(Error::new(StatusCode::FORBIDDEN, "no permission"));
+            return Err(Error::new(
+                StatusCode::FORBIDDEN.as_u16(),
+                "no permission",
+            ));
         }
         self.dog_client
             .update_dog_portrait(dog_id, portrait_id)
@@ -181,8 +199,65 @@ where
     ) -> Result<ByteStream, Error> {
         let is_owner = self.dog_client.is_owner_of_the_dog(uid, dog_id).await?;
         if !is_owner {
-            return Err(Error::new(StatusCode::FORBIDDEN, "no permission"));
+            return Err(Error::new(
+                StatusCode::FORBIDDEN.as_u16(),
+                "no permission",
+            ));
         }
         self.dog_client.update_dog(dog_id, req_body).await
+    }
+
+    pub async fn nearby_requests(
+        &self,
+        longitude: f64,
+        latitude: f64,
+        radius: f64,
+        pagination: Pagination,
+    ) -> Result<Vec<WalkRequest>, Error> {
+        let fs = self
+            .walk_request_client
+            .query_walk_requests(WalkRequestQuery {
+                nearby: Some(Nearby {
+                    latitude,
+                    longitude,
+                    radius,
+                }),
+                ..Default::default()
+            })
+            .await?
+            .into_iter()
+            .map(|r| async move {
+                let dogs = self
+                    .dog_client
+                    .query_dogs(&DogQuery {
+                        id_in: Some(
+                            r.dogs.iter().map(|d| d.id.to_owned()).collect(),
+                        ),
+                        ..Default::default()
+                    })
+                    .await?;
+                Ok(WalkRequest {
+                    id: r.id,
+                    dogs,
+                    should_end_after: r.should_end_after,
+                    should_end_before: r.should_end_before,
+                    should_start_after: r.should_start_after,
+                    should_start_before: r.should_start_before,
+                    latitude: r.latitude,
+                    longitude: r.longitude,
+                    distance: r.distance,
+                    canceled_at: r.canceled_at,
+                    accepted_at: r.accepted_at,
+                    accepted_by: r.accepted_by,
+                    started_at: r.started_at,
+                    finished_at: r.finished_at,
+                    status: r.status,
+                    acceptances: r.acceptances,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                })
+            })
+            .collect::<Vec<_>>();
+        try_join_all(fs).await
     }
 }

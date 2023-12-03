@@ -2,6 +2,7 @@ use crate::core::error::Error;
 use crate::core::service::Service;
 use crate::core::sms_verification_code_client::SMSVerificationCodeClient;
 use crate::core::upload_client::UploadClient;
+use crate::core::walk_request_client::WalkRequestClient;
 use crate::core::{auth_client::AuthClient, dog_client::DogClient};
 use actix_web::{
     web::{Data, Json, Path},
@@ -27,8 +28,8 @@ pub struct LoginBySMSVerificationCodeParams {
         ("code" = String, Query, description = "verification code")
     )
 )]
-pub async fn login_by_sms_verification_code<A, U, S, D>(
-    service: Data<Service<A, U, S, D>>,
+pub async fn login_by_sms_verification_code<A, U, S, D, R>(
+    service: Data<Service<A, U, S, D, R>>,
     Json(LoginBySMSVerificationCodeParams { phone, code }): Json<
         LoginBySMSVerificationCodeParams,
     >,
@@ -38,6 +39,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
+    R: WalkRequestClient,
 {
     let stream = service
         .login_by_sms_verification_code(&phone, &code)
@@ -51,8 +53,8 @@ pub struct LoginByPasswordParams {
     pub password: String,
 }
 
-pub async fn login_by_password<A, U, S, D>(
-    service: Data<Service<A, U, S, D>>,
+pub async fn login_by_password<A, U, S, D, R>(
+    service: Data<Service<A, U, S, D, R>>,
     Json(LoginByPasswordParams { phone, password }): Json<
         LoginByPasswordParams,
     >,
@@ -62,6 +64,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
+    R: WalkRequestClient,
 {
     Ok(HttpResponse::Ok()
         .streaming(service.login_by_password(&phone, &password).await?))
@@ -74,8 +77,8 @@ pub struct SignupParams {
     pub verification_code: String,
 }
 
-pub async fn signup<A, U, S, D>(
-    service: Data<Service<A, U, S, D>>,
+pub async fn signup<A, U, S, D, R>(
+    service: Data<Service<A, U, S, D, R>>,
     Json(SignupParams {
         phone,
         password,
@@ -87,6 +90,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
+    R: WalkRequestClient,
 {
     let res = service
         .signup(&phone, &password, &verification_code)
@@ -94,8 +98,8 @@ where
     Ok(HttpResponse::Ok().streaming(res))
 }
 
-pub async fn send_verification_code<A, U, S, D>(
-    service: Data<Service<A, U, S, D>>,
+pub async fn send_verification_code<A, U, S, D, R>(
+    service: Data<Service<A, U, S, D, R>>,
     phone: Path<(String,)>,
 ) -> Result<HttpResponse, Error>
 where
@@ -103,6 +107,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
+    R: WalkRequestClient,
 {
     let res = service.send_verification_code(&phone.as_ref().0).await?;
     Ok(HttpResponse::Ok().streaming(res))
@@ -113,8 +118,8 @@ pub struct VerifyAuthTokenResp {
     id: String,
 }
 
-pub async fn verify_auth_token<A, U, S, D>(
-    service: Data<Service<A, U, S, D>>,
+pub async fn verify_auth_token<A, U, S, D, R>(
+    service: Data<Service<A, U, S, D, R>>,
     token: Path<(String,)>,
 ) -> Result<Json<VerifyAuthTokenResp>, Error>
 where
@@ -122,6 +127,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
+    R: WalkRequestClient,
 {
     let id = service.verify_auth_token(&token.as_ref().0).await?;
     Ok(Json(VerifyAuthTokenResp { id }))

@@ -2,8 +2,8 @@ use std::pin::Pin;
 
 use actix_web::{web::Bytes, Handler, HttpRequest, HttpResponse};
 use futures::Future;
-use http::{Method, StatusCode};
-use reqwest::{header::HeaderMap, Client};
+use http::StatusCode;
+use reqwest::{header::HeaderMap, Client, Method};
 use serde::Deserialize;
 use url::Url;
 
@@ -24,10 +24,12 @@ fn parse_url(
     query: &str,
 ) -> Result<Url, Error> {
     let mut base_url = Url::parse(&format!("http://{}", host_and_port))
-        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-    let mut url = base_url
-        .join(path)
-        .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        .map_err(|e| {
+            Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+        })?;
+    let mut url = base_url.join(path).map_err(|e| {
+        Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+    })?;
     if query != "" {
         url.set_query(Some(query));
     }
@@ -73,7 +75,7 @@ pub(crate) fn pass_through(
                     _ => {
                         return Box::pin(async {
                             Err(Error::new(
-                                StatusCode::METHOD_NOT_ALLOWED,
+                                StatusCode::METHOD_NOT_ALLOWED.as_u16(),
                                 "unsupported method",
                             ))
                         })
@@ -87,7 +89,7 @@ pub(crate) fn pass_through(
                 })
             }
             Err(e) => Box::pin(async move {
-                Err(Error::new(StatusCode::BAD_REQUEST, e.to_string()))
+                Err(Error::new(StatusCode::BAD_REQUEST.as_u16(), e.to_string()))
             }),
         }
     }

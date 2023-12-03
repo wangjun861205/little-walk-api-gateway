@@ -1,8 +1,35 @@
 use bytes::Bytes;
 
-use crate::core::error::Error;
+use crate::{core::common::Pagination, core::error::Error};
+use chrono::{DateTime, Utc};
 
 use super::{requests::DogQuery, service::ByteStream};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpstreamBreed {
+    pub id: String,
+    pub category: String,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpstreamDog {
+    pub id: String,
+    pub name: String,
+    pub gender: String,
+    pub breed: UpstreamBreed,    // 品种
+    pub birthday: DateTime<Utc>, // 生日
+    pub is_sterilized: bool,     // 是否绝育
+    pub introduction: String,
+    pub owner_id: String,
+    pub tags: Vec<String>,
+    pub portrait_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
 
 pub trait DogClient {
     async fn add_dog(
@@ -18,9 +45,7 @@ pub trait DogClient {
     async fn query_dogs(
         &self,
         query: &DogQuery,
-        page: i32,
-        size: i32,
-    ) -> Result<ByteStream, Error>;
+    ) -> Result<Vec<UpstreamDog>, Error>;
 
     async fn is_owner_of_the_dog(
         &self,

@@ -2,20 +2,26 @@ use std::collections::HashMap;
 
 use crate::{
     core::{
-        dog_client::DogClient as IDogClient,
+        common::Pagination,
+        dog_client::{DogClient as IDogClient, UpstreamDog},
         error::Error,
         requests::{DogPortraitUpdate, DogQuery},
         service::ByteStream,
     },
+    handlers::dog::BreedQuery,
     utils::{
         io::stream_to_bytes,
         restful::{parse_url, request},
     },
 };
-use reqwest::{Body, Client, Method, StatusCode};
+use http::StatusCode;
+use nb_to_query::ToQuery;
+use reqwest::{Body, Client, Method};
+use serde_json::from_slice;
 
 use super::responses::IsOwnerOfTheDogResp;
 use bytes::Bytes;
+use futures::TryStreamExt;
 
 pub struct DogClient {
     host_and_port: String,
@@ -63,20 +69,23 @@ impl IDogClient for DogClient {
     async fn query_dogs(
         &self,
         query: &DogQuery,
-        page: i32,
-        size: i32,
-    ) -> Result<ByteStream, Error> {
-        let page = page.to_string();
-        let size = size.to_string();
-        let mut q = HashMap::new();
-        q.insert("page", page.as_str());
-        q.insert("size", size.as_str());
-        if let Some(owner_id_eq) = &query.owner_id_eq {
-            q.insert("owner_id_eq", owner_id_eq);
-        }
-        let url = parse_url(&self.host_and_port, "/dogs", Some(q))?;
+    ) -> Result<Vec<UpstreamDog>, Error> {
+        let url = parse_url(
+            &self.host_and_port,
+            "/dogs",
+            query.to_query("").as_deref(),
+        )?;
         let builder = Client::new().request(Method::GET, url);
-        request(builder).await
+        let bs: Vec<u8> = request(builder)
+            .await?
+            .try_collect::<Vec<Bytes>>()
+            .await?
+            .into_iter()
+            .flat_map(|b| b.to_vec())
+            .collect();
+        from_slice(&bs).map_err(|e| {
+            Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+        })
     }
 
     async fn is_owner_of_the_dog(
@@ -87,11 +96,13 @@ impl IDogClient for DogClient {
         let mut url = parse_url(
             &self.host_and_port,
             "/dogs/exists",
-            Some(
-                vec![("owner_id", owner_id), ("id", dog_id)]
-                    .into_iter()
-                    .collect::<HashMap<&str, &str>>(),
-            ),
+            DogQuery {
+                id: Some(dog_id.to_owned()),
+                owner_id: Some(owner_id.to_owned()),
+                ..Default::default()
+            }
+            .to_query("")
+            .as_deref(),
         )?;
         let params =
             vec![format!("owner_id={}", owner_id), format!("id={}", dog_id)];
@@ -100,7 +111,9 @@ impl IDogClient for DogClient {
         let stream = request(builder).await?;
         let bytes = stream_to_bytes(stream).await?;
         let result: IsOwnerOfTheDogResp = serde_json::from_slice(&bytes)
-            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+            .map_err(|e| {
+                Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+            })?;
         Ok(result.is_owner)
     }
 
@@ -121,7 +134,7 @@ impl IDogClient for DogClient {
                     portrait_id: portrait_id.into(),
                 })
                 .map_err(|e| {
-                    Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+                    Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
                 })?,
             )
             .header("Content-Type", "application/json");
@@ -132,7 +145,11 @@ impl IDogClient for DogClient {
         let url = parse_url(
             &self.host_and_port,
             "/breeds",
-            Some(vec![("category_eq", category)].into_iter().collect()),
+            BreedQuery {
+                category_eq: category.to_owned(),
+            }
+            .to_query("")
+            .as_deref(),
         )?;
         let builder = Client::new().request(Method::GET, url);
         request(builder).await

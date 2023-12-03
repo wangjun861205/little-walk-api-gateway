@@ -4,12 +4,12 @@ use std::fmt::Display;
 
 #[derive(Debug)]
 pub struct Error {
-    pub status_code: StatusCode,
+    pub status_code: u16,
     pub cause: String,
 }
 
 impl Error {
-    pub fn new<C>(status_code: StatusCode, cause: C) -> Self
+    pub fn new<C>(status_code: u16, cause: C) -> Self
     where
         C: Display,
     {

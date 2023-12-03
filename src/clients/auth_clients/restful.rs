@@ -5,10 +5,10 @@ use crate::utils::restful::{make_request, parse_url};
 use crate::{
     core::auth_client::AuthClient as IAuthClient, utils::restful::request,
 };
-use reqwest::{Client, Method, StatusCode};
+use http::StatusCode;
+use reqwest::{Client, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::from_slice;
-use url::Url;
 
 #[derive(Clone)]
 pub struct AuthClient {
@@ -62,8 +62,9 @@ impl IAuthClient for AuthClient {
         )
         .await?;
         let bs = stream_to_bytes(body).await?;
-        let result: ExistsUserResp = from_slice(&bs)
-            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let result: ExistsUserResp = from_slice(&bs).map_err(|e| {
+            Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+        })?;
         Ok(result.exists)
     }
 
@@ -101,7 +102,7 @@ impl IAuthClient for AuthClient {
                     password: password.into(),
                 })
                 .map_err(|e| {
-                    Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+                    Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
                 })?,
             ),
             None,
@@ -126,7 +127,7 @@ impl IAuthClient for AuthClient {
                     password: password.into(),
                 })
                 .map_err(|e| {
-                    Error::new(StatusCode::INTERNAL_SERVER_ERROR, e)
+                    Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
                 })?,
             ),
             None,
@@ -143,8 +144,10 @@ impl IAuthClient for AuthClient {
         let builder = Client::new().request(Method::GET, url);
         let stream = request(builder).await?;
         let bs = stream_to_bytes(stream).await?;
-        let result: VerifyTokenResp = serde_json::from_slice(&bs)
-            .map_err(|e| Error::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let result: VerifyTokenResp =
+            serde_json::from_slice(&bs).map_err(|e| {
+                Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+            })?;
         Ok(result.id)
     }
 }

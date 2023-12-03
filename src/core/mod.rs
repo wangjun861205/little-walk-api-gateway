@@ -1,4 +1,5 @@
 pub mod auth_client;
+pub mod common;
 pub mod dog_client;
 pub mod error;
 pub mod requests;
