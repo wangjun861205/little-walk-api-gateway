@@ -12,7 +12,7 @@ use std::{
     task::Poll,
 };
 
-use crate::core::auth_client::AuthClient;
+use crate::core::clients::auth::AuthClient;
 use std::str::FromStr;
 use std::sync::Arc;
 

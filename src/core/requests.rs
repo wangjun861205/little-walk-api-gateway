@@ -1,12 +1,12 @@
-use nb_to_query::{ToQuery, ToQueryDerive};
 use serde::Serialize;
 
 use super::common::Pagination;
+use nb_serde_query::Array;
 
-#[derive(Debug, Default, Serialize, ToQueryDerive)]
+#[derive(Debug, Default, Serialize)]
 pub struct DogQuery {
     pub id: Option<String>,
-    pub id_in: Option<Vec<String>>,
+    pub id_in: Option<Array<String>>,
     pub owner_id: Option<String>,
     pub pagination: Option<Pagination>,
 }

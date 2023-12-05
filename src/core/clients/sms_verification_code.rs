@@ -1,6 +1,6 @@
 use crate::core::error::Error;
 
-use super::service::ByteStream;
+use crate::core::service::ByteStream;
 
 pub trait SMSVerificationCodeClient {
     async fn send_code(&self, phone: &str) -> Result<ByteStream, Error>;

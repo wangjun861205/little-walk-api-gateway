@@ -1,13 +1,14 @@
 use actix_web::{error::ErrorInternalServerError, Error};
 
 use crate::core::{
-    auth_client::AuthClient,
+    clients::{
+        auth::AuthClient, dog::DogClient,
+        sms_verification_code::SMSVerificationCodeClient, upload::UploadClient,
+        walk_request,
+    },
     common::Pagination,
-    dog_client::DogClient,
+    entities::WalkRequest,
     service::Service,
-    sms_verification_code_client::SMSVerificationCodeClient,
-    upload_client::UploadClient,
-    walk_request_client::{WalkRequest, WalkRequestClient},
 };
 
 pub struct NearbyRequestsParams {
@@ -23,7 +24,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
-    R: WalkRequestClient,
+    R: walk_request::WalkRequestClient,
 {
     service: Service<A, U, S, D, R>,
 }
@@ -34,7 +35,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
-    R: WalkRequestClient,
+    R: walk_request::WalkRequestClient,
 {
     pub(crate) fn new(service: Service<A, U, S, D, R>) -> Self {
         Self { service }

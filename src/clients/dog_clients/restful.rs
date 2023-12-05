@@ -1,9 +1,6 @@
-use std::collections::HashMap;
-
 use crate::{
     core::{
-        common::Pagination,
-        dog_client::{DogClient as IDogClient, UpstreamDog},
+        clients::dog::{Dog, DogClient as IDogClient},
         error::Error,
         requests::{DogPortraitUpdate, DogQuery},
         service::ByteStream,
@@ -11,11 +8,10 @@ use crate::{
     handlers::dog::BreedQuery,
     utils::{
         io::stream_to_bytes,
-        restful::{parse_url, request},
+        restful::{parse_url, request, to_query_string},
     },
 };
 use http::StatusCode;
-use nb_to_query::ToQuery;
 use reqwest::{Body, Client, Method};
 use serde_json::from_slice;
 
@@ -66,14 +62,11 @@ impl IDogClient for DogClient {
         Ok(stream)
     }
 
-    async fn query_dogs(
-        &self,
-        query: &DogQuery,
-    ) -> Result<Vec<UpstreamDog>, Error> {
+    async fn query_dogs(&self, query: &DogQuery) -> Result<Vec<Dog>, Error> {
         let url = parse_url(
             &self.host_and_port,
             "/dogs",
-            query.to_query("").as_deref(),
+            to_query_string(query)?.as_deref(),
         )?;
         let builder = Client::new().request(Method::GET, url);
         let bs: Vec<u8> = request(builder)
@@ -96,12 +89,11 @@ impl IDogClient for DogClient {
         let mut url = parse_url(
             &self.host_and_port,
             "/dogs/exists",
-            DogQuery {
+            to_query_string(&DogQuery {
                 id: Some(dog_id.to_owned()),
                 owner_id: Some(owner_id.to_owned()),
                 ..Default::default()
-            }
-            .to_query("")
+            })?
             .as_deref(),
         )?;
         let params =
@@ -145,10 +137,9 @@ impl IDogClient for DogClient {
         let url = parse_url(
             &self.host_and_port,
             "/breeds",
-            BreedQuery {
+            to_query_string(&BreedQuery {
                 category_eq: category.to_owned(),
-            }
-            .to_query("")
+            })?
             .as_deref(),
         )?;
         let builder = Client::new().request(Method::GET, url);

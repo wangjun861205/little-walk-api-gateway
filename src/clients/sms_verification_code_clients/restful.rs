@@ -1,7 +1,7 @@
 use crate::{
     core::{
+        clients::sms_verification_code::SMSVerificationCodeClient as ISMSVerificationCodeClient,
         error::Error, service::ByteStream,
-        sms_verification_code_client::SMSVerificationCodeClient as ISMSVerificationCodeClient,
     },
     utils::{
         io::stream_to_bytes,

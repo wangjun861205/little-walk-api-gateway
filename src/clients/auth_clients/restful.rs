@@ -3,7 +3,7 @@ use crate::core::service::ByteStream;
 use crate::utils::io::stream_to_bytes;
 use crate::utils::restful::{make_request, parse_url};
 use crate::{
-    core::auth_client::AuthClient as IAuthClient, utils::restful::request,
+    core::clients::auth::AuthClient as IAuthClient, utils::restful::request,
 };
 use http::StatusCode;
 use reqwest::{Client, Method};

@@ -1,23 +1,20 @@
 use crate::core::{
-    auth_client::AuthClient, error::Error, requests::DogQuery,
-    sms_verification_code_client::SMSVerificationCodeClient,
-    upload_client::UploadClient,
+    clients::{
+        auth::AuthClient, dog,
+        sms_verification_code::SMSVerificationCodeClient, upload::UploadClient,
+        walk_request,
+    },
+    entities::WalkRequest,
+    error::Error,
+    requests::DogQuery,
 };
 use bytes::Bytes;
-use futures::{
-    future::{join_all, try_join_all},
-    Future, Stream,
-};
+use futures::{future::try_join_all, Stream};
+use nb_serde_query::Array;
 use reqwest::StatusCode;
 use std::pin::Pin;
 
-use super::{
-    common::Pagination,
-    dog_client::{DogClient, UpstreamDog},
-    walk_request_client::{
-        Nearby, WalkRequest, WalkRequestClient, WalkRequestQuery,
-    },
-};
+use super::common::Pagination;
 
 pub type ByteStream =
     Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send + Sync>>;
@@ -27,8 +24,8 @@ where
     A: AuthClient,
     U: UploadClient,
     S: SMSVerificationCodeClient,
-    D: DogClient,
-    R: WalkRequestClient,
+    D: dog::DogClient,
+    R: walk_request::WalkRequestClient,
 {
     auth_client: A,
     upload_client: U,
@@ -42,8 +39,8 @@ where
     A: AuthClient,
     U: UploadClient,
     S: SMSVerificationCodeClient,
-    D: DogClient,
-    R: WalkRequestClient,
+    D: dog::DogClient,
+    R: walk_request::WalkRequestClient,
 {
     pub fn new(
         auth_client: A,
@@ -156,7 +153,7 @@ where
         uid: &str,
         page: i32,
         size: i32,
-    ) -> Result<Vec<UpstreamDog>, Error> {
+    ) -> Result<Vec<dog::Dog>, Error> {
         self.dog_client
             .query_dogs(&DogQuery {
                 owner_id: Some(uid.to_owned()),
@@ -216,12 +213,13 @@ where
     ) -> Result<Vec<WalkRequest>, Error> {
         let fs = self
             .walk_request_client
-            .query_walk_requests(WalkRequestQuery {
-                nearby: Some(Nearby {
+            .query_walk_requests(walk_request::WalkRequestQuery {
+                nearby: Some(walk_request::Nearby {
                     latitude,
                     longitude,
                     radius,
                 }),
+                pagination: Some(pagination),
                 ..Default::default()
             })
             .await?
@@ -230,32 +228,11 @@ where
                 let dogs = self
                     .dog_client
                     .query_dogs(&DogQuery {
-                        id_in: Some(
-                            r.dogs.iter().map(|d| d.id.to_owned()).collect(),
-                        ),
+                        id_in: Some(Array(r.dog_ids.clone())),
                         ..Default::default()
                     })
                     .await?;
-                Ok(WalkRequest {
-                    id: r.id,
-                    dogs,
-                    should_end_after: r.should_end_after,
-                    should_end_before: r.should_end_before,
-                    should_start_after: r.should_start_after,
-                    should_start_before: r.should_start_before,
-                    latitude: r.latitude,
-                    longitude: r.longitude,
-                    distance: r.distance,
-                    canceled_at: r.canceled_at,
-                    accepted_at: r.accepted_at,
-                    accepted_by: r.accepted_by,
-                    started_at: r.started_at,
-                    finished_at: r.finished_at,
-                    status: r.status,
-                    acceptances: r.acceptances,
-                    created_at: r.created_at,
-                    updated_at: r.updated_at,
-                })
+                Ok(WalkRequest::from((r, dogs)))
             })
             .collect::<Vec<_>>();
         try_join_all(fs).await

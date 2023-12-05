@@ -3,6 +3,7 @@ use crate::core::service::ByteStream;
 use actix_web::HttpRequest;
 use futures::TryStreamExt;
 use http::StatusCode;
+use nb_serde_query::to_string as to_query;
 use reqwest::{
     header::HeaderMap, multipart::Form, Body, Client, IntoUrl, Method,
     RequestBuilder,
@@ -80,6 +81,17 @@ pub fn extract_user_id(req: &HttpRequest) -> Result<&str, Error> {
         .to_str()
         .map_err(|e| Error::new(StatusCode::UNAUTHORIZED.as_u16(), e))?;
     Ok(user_id)
+}
+
+pub fn to_query_string<T: Serialize>(
+    params: &T,
+) -> Result<Option<String>, Error> {
+    let s = to_query(params)
+        .map_err(|e| Error::new(StatusCode::BAD_REQUEST.as_u16(), e))?;
+    if s.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(s))
 }
 
 pub fn parse_url(

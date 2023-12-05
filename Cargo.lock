@@ -796,6 +796,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d77f7ec81a6d05a3abb01ab6eb7590f6083d08449fe5a1c8b1e620283546ccb7"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "http"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1022,7 +1028,7 @@ dependencies = [
  "futures",
  "http 1.0.0",
  "nb-from-env",
- "nb-to-query",
+ "nb-serde-query",
  "reqwest",
  "serde",
  "serde_json",
@@ -1134,24 +1140,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "nb-to-query"
-version = "0.1.1"
+name = "nb-serde-query"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a51a07957045af219b5d8df8260c290ec9291b0bed48e94542178078232a40f"
+checksum = "9db96f0c59817c9bf4a5569559187babfc068ec25dff944c5e48eb7d99da45a4"
 dependencies = [
- "chrono",
- "nb-to-query-derive",
-]
-
-[[package]]
-name = "nb-to-query-derive"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "913ef01bc515d3e00334f79a09fb0ebc1fa439a1712d4f52708ad41cca984141"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.39",
+ "anyhow",
+ "base64",
+ "hex",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1524,18 +1522,18 @@ checksum = "836fa6a3e1e547f9a2c4040802ec865b5d85f4014efe00555d7090a3dcaa1090"
 
 [[package]]
 name = "serde"
-version = "1.0.190"
+version = "1.0.193"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91d3c334ca1ee894a2c6f6ad698fe8c435b76d504b13d436f0685d648d6d96f7"
+checksum = "25dd9975e68d0cb5aa1120c288333fc98731bd1dd12f561e468ea4728c042b89"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.190"
+version = "1.0.193"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67c5609f394e5c2bd7fc51efda478004ea80ef42fee983d5c67a65e34f32c0e3"
+checksum = "43576ca501357b9b071ac53cdc7da8ef0cbd9493d8df094cd821777ea6e894d3"
 dependencies = [
  "proc-macro2",
  "quote",

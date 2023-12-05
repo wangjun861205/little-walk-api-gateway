@@ -1,9 +1,9 @@
+use crate::core::clients::sms_verification_code::SMSVerificationCodeClient;
+use crate::core::clients::upload::UploadClient;
+use crate::core::clients::walk_request::WalkRequestClient;
+use crate::core::clients::{auth::AuthClient, dog::DogClient};
 use crate::core::error::Error;
 use crate::core::service::Service;
-use crate::core::sms_verification_code_client::SMSVerificationCodeClient;
-use crate::core::upload_client::UploadClient;
-use crate::core::walk_request_client::WalkRequestClient;
-use crate::core::{auth_client::AuthClient, dog_client::DogClient};
 use actix_web::{
     web::{Data, Json, Path},
     HttpResponse,

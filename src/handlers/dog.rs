@@ -3,20 +3,22 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use http::StatusCode;
-use nb_to_query::{ToQuery, ToQueryDerive};
 
 use crate::{
     core::{
-        auth_client::AuthClient, dog_client::DogClient, error::Error,
+        clients::{
+            auth::AuthClient, dog::DogClient,
+            sms_verification_code::SMSVerificationCodeClient,
+            upload::UploadClient, walk_request::WalkRequestClient,
+        },
+        error::Error,
         service::Service,
-        sms_verification_code_client::SMSVerificationCodeClient,
-        upload_client::UploadClient, walk_request_client::WalkRequestClient,
     },
     utils::restful::extract_user_id,
 };
 
 use futures::{stream, StreamExt, TryStreamExt};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub async fn add_dog<A, U, S, D, R>(
     service: Data<Service<A, U, S, D, R>>,
@@ -149,7 +151,7 @@ where
         .streaming(stream))
 }
 
-#[derive(Debug, Deserialize, ToQueryDerive)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BreedQuery {
     pub category_eq: String,
 }

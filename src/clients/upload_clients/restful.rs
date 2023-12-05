@@ -1,5 +1,5 @@
+use crate::core::clients::upload::UploadClient as IUploadClient;
 use crate::core::service::ByteStream;
-use crate::core::upload_client::UploadClient as IUploadClient;
 use crate::utils::restful::{make_request, parse_url};
 use crate::{core::error::Error, utils::restful::request};
 use reqwest::{
