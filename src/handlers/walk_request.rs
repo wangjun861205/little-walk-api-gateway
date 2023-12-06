@@ -1,4 +1,8 @@
-use actix_web::{error::ErrorInternalServerError, Error};
+use actix_web::{
+    error::ErrorInternalServerError,
+    web::{Data, Json, Query},
+    Error,
+};
 
 use crate::core::{
     clients::{
@@ -11,14 +15,20 @@ use crate::core::{
     service::Service,
 };
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NearbyRequestsParams {
-    pub lat: f64,
-    pub lng: f64,
-    pub page: i32,
-    pub size: i32,
+    pub latitude: f64,
+    pub longitude: f64,
+    #[serde(flatten)]
+    pub pagination: Pagination,
 }
 
-pub(crate) struct WalkRequestHandler<A, U, S, D, R>
+pub(crate) async fn nearby_requests<A, U, S, D, R>(
+    service: Data<Service<A, U, S, D, R>>,
+    Query(params): Query<NearbyRequestsParams>,
+) -> Result<Json<Vec<WalkRequest>>, Error>
 where
     A: AuthClient,
     U: UploadClient,
@@ -26,36 +36,18 @@ where
     D: DogClient,
     R: walk_request::WalkRequestClient,
 {
-    service: Service<A, U, S, D, R>,
-}
-
-impl<A, U, S, D, R> WalkRequestHandler<A, U, S, D, R>
-where
-    A: AuthClient,
-    U: UploadClient,
-    S: SMSVerificationCodeClient,
-    D: DogClient,
-    R: walk_request::WalkRequestClient,
-{
-    pub(crate) fn new(service: Service<A, U, S, D, R>) -> Self {
-        Self { service }
-    }
-
-    pub(crate) async fn nearby_requests(
-        &self,
-        params: NearbyRequestsParams,
-    ) -> Result<Vec<WalkRequest>, Error> {
-        self.service
+    Ok(Json(
+        service
             .nearby_requests(
-                params.lng,
-                params.lat,
+                params.longitude,
+                params.latitude,
                 20.0,
                 Pagination {
-                    page: params.page,
-                    size: params.size,
+                    page: params.pagination.page,
+                    size: params.pagination.size,
                 },
             )
             .await
-            .map_err(ErrorInternalServerError)
-    }
+            .map_err(ErrorInternalServerError)?,
+    ))
 }

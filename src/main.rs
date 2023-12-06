@@ -208,10 +208,15 @@ async fn main() -> std::io::Result<()> {
                         scope("/walk_requests")
                             .route(
                                 "nearby",
-                                get().to(handlers::common::pass_through(
-                                    "localhost:8005",
-                                    None,
-                                )),
+                                get().to(
+                                    handlers::walk_request::nearby_requests::<
+                                        AuthClient,
+                                        UploadClient,
+                                        SMSVerificationCodeClient,
+                                        DogClient,
+                                        WalkRequestClient,
+                                    >,
+                                ),
                             )
                             .route(
                                 "",
