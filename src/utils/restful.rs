@@ -1,13 +1,16 @@
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
-use actix_web::HttpRequest;
-use futures::TryStreamExt;
+use actix_web::error::ErrorBadRequest;
+use actix_web::{FromRequest, HttpRequest};
+use futures::{future, TryStreamExt};
 use http::StatusCode;
+use nb_serde_query::from_str;
 use nb_serde_query::to_string as to_query;
 use reqwest::{
     header::HeaderMap, multipart::Form, Body, Client, IntoUrl, Method,
     RequestBuilder,
 };
+use serde::Deserialize;
 use serde::Serialize;
 use std::time::Duration;
 use url::Url;
@@ -106,4 +109,27 @@ pub fn parse_url(
     url.set_path(path);
     url.set_query(params);
     Ok(url)
+}
+
+pub struct Query<T>(pub T);
+
+impl<T> FromRequest for Query<T>
+where
+    for<'de> T: Deserialize<'de>,
+{
+    type Error = Error;
+    type Future = futures::future::Ready<Result<Self, Self::Error>>;
+
+    fn from_request(
+        req: &HttpRequest,
+        _payload: &mut actix_web::dev::Payload,
+    ) -> Self::Future {
+        let query = req.query_string();
+        match from_str(query)
+            .map_err(|e| Error::new(StatusCode::BAD_REQUEST.as_u16(), e))
+        {
+            Ok(v) => futures::future::ready(Ok(Query(v))),
+            Err(e) => futures::future::ready(Err(e)),
+        }
+    }
 }

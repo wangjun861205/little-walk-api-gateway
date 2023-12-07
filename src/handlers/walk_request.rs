@@ -1,10 +1,12 @@
-use std::{pin::Pin, process::Output};
+use std::pin::Pin;
 
 use actix_web::{
     error::{ErrorBadRequest, ErrorInternalServerError},
-    web::{Data, Json, Query},
+    web::{Data, Json},
     Error, FromRequest,
 };
+
+use crate::utils::restful::Query;
 
 use crate::core::{
     clients::{
@@ -28,22 +30,9 @@ pub struct NearbyRequestsParams {
     pub pagination: Pagination,
 }
 
-impl FromRequest for NearbyRequestsParams {
-    type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self, Error>>>>;
-
-    fn from_request(
-        req: &actix_web::HttpRequest,
-        _payload: &mut actix_web::dev::Payload,
-    ) -> Self::Future {
-        let query_str = req.query_string().to_owned();
-        Box::pin(async move { from_str(&query_str).map_err(ErrorBadRequest) })
-    }
-}
-
 pub(crate) async fn nearby_requests<A, U, S, D, R>(
     service: Data<Service<A, U, S, D, R>>,
-    params: NearbyRequestsParams,
+    Query(params): Query<NearbyRequestsParams>,
 ) -> Result<Json<Vec<WalkRequest>>, Error>
 where
     A: AuthClient,
