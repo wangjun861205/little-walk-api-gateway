@@ -8,7 +8,6 @@ pub struct DogQuery {
     pub id: Option<String>,
     pub id_in: Option<Array<String>>,
     pub owner_id: Option<String>,
-    #[serde(flatten)]
     pub pagination: Option<Pagination>,
 }
 

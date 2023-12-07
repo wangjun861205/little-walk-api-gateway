@@ -1,0 +1,1 @@
+url=http://localhost:9000/apis/walk_requests/nearby?latitude=1.0&longitude=2.0&page=10&size=0
