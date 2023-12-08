@@ -5,7 +5,7 @@ use crate::{
     },
     utils::{
         io::stream_to_bytes,
-        restful::{make_request, parse_url},
+        restful::{make_request, parse_url, RequestBody},
     },
 };
 use http::StatusCode;
@@ -34,18 +34,13 @@ impl ISMSVerificationCodeClient for SMSVerificationCodeClient {
         &self,
         phone: &str,
     ) -> Result<ByteStream, crate::core::error::Error> {
-        let url = parse_url(
-            &&self.host_and_port,
-            format!("/phones/{}/codes", phone).as_str(),
-            None,
-        )?;
         make_request(
             Method::PUT,
-            url,
+            &self.host_and_port,
+            format!("/phones/{}/codes", phone).as_str(),
             None,
-            Option::<String>::None,
-            Option::<String>::None,
-            None,
+            Option::<()>::None,
+            RequestBody::<()>::None,
         )
         .await
     }
@@ -55,18 +50,13 @@ impl ISMSVerificationCodeClient for SMSVerificationCodeClient {
         phone: &str,
         code: &str,
     ) -> Result<bool, crate::core::error::Error> {
-        let url = parse_url(
+        let stream = make_request(
+            Method::PUT,
             &self.host_and_port,
             format!("/phones/{}/codes/{}/verification", phone, code).as_str(),
             None,
-        )?;
-        let stream = make_request(
-            Method::PUT,
-            url,
-            None,
-            Option::<String>::None,
-            Option::<String>::None,
-            None,
+            Option::<()>::None,
+            RequestBody::<()>::None,
         )
         .await?;
         let bs = stream_to_bytes(stream).await?;

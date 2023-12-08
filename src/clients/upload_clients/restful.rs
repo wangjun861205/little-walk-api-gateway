@@ -1,12 +1,9 @@
 use crate::core::clients::upload::UploadClient as IUploadClient;
 use crate::core::service::ByteStream;
+use crate::utils::restful::RequestBody;
 use crate::utils::restful::{make_request, parse_url};
 use crate::{core::error::Error, utils::restful::request};
-use reqwest::{
-    multipart::{Form, Part},
-    Body, Client, Method,
-};
-use url::Url;
+use reqwest::{Body, Client, Method};
 
 pub struct UploadClient {
     host_and_port: String,
@@ -38,18 +35,13 @@ impl IUploadClient for UploadClient {
         request(builder).await
     }
     async fn download(&self, id: &str) -> Result<ByteStream, Error> {
-        let url = parse_url(
+        make_request(
+            Method::GET,
             &self.host_and_port,
             format!("/files/{}", id).as_str(),
             None,
-        )?;
-        make_request(
-            Method::GET,
-            url,
-            None,
-            Option::<String>::None,
-            Option::<String>::None,
-            None,
+            Option::<()>::None,
+            RequestBody::<()>::None,
         )
         .await
     }

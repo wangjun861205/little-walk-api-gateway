@@ -1,4 +1,3 @@
-use http::StatusCode;
 use std::error::Error as StdError;
 use std::fmt::Display;
 
@@ -17,6 +16,13 @@ impl Error {
             status_code,
             cause: cause.to_string(),
         }
+    }
+
+    pub fn wrap<C>(status_code: u16) -> impl FnOnce(C) -> Self
+    where
+        C: Display,
+    {
+        move |c| Error::new(status_code, c)
     }
 }
 

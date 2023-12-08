@@ -1141,9 +1141,9 @@ dependencies = [
 
 [[package]]
 name = "nb-serde-query"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a0912bbe5d6fb70bddc01b8567dff62b6bceecf6147dcae24dd3c56f1690f54"
+checksum = "71f9a6a8f7c6ddddca1df417db2e25d48848f686dc531b9c9ef60473881b62d2"
 dependencies = [
  "anyhow",
  "base64",

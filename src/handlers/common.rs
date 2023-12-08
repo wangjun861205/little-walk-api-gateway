@@ -23,14 +23,14 @@ fn parse_url(
     path: &str,
     query: &str,
 ) -> Result<Url, Error> {
-    let mut base_url = Url::parse(&format!("http://{}", host_and_port))
-        .map_err(|e| {
+    let base_url =
+        Url::parse(&format!("http://{}", host_and_port)).map_err(|e| {
             Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
         })?;
     let mut url = base_url.join(path).map_err(|e| {
         Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
     })?;
-    if query != "" {
+    if query.is_empty() {
         url.set_query(Some(query));
     }
     Ok(url)

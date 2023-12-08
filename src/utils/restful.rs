@@ -1,33 +1,49 @@
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
-use actix_web::error::ErrorBadRequest;
 use actix_web::{FromRequest, HttpRequest};
-use futures::{future, TryStreamExt};
+use futures::TryStreamExt;
 use http::StatusCode;
 use nb_serde_query::from_str;
 use nb_serde_query::to_string as to_query;
 use reqwest::{
-    header::HeaderMap, multipart::Form, Body, Client, IntoUrl, Method,
-    RequestBuilder,
+    header::HeaderMap, multipart::Form, Client, Method, RequestBuilder,
 };
 use serde::Deserialize;
 use serde::Serialize;
 use std::time::Duration;
 use url::Url;
 
-pub(crate) async fn make_request<U, P, B>(
+pub enum RequestBody<J>
+where
+    J: Serialize,
+{
+    None,
+    Json(J),
+    MultipartForm(Form),
+}
+
+pub(crate) async fn make_request<H, P, Q, J>(
     method: Method,
-    url: U,
+    host_and_port: H,
+    path: P,
     headers: Option<HeaderMap>,
-    params: Option<P>,
-    body: Option<B>,
-    multipart: Option<Form>,
+    params: Option<Q>,
+    body: RequestBody<J>,
 ) -> Result<ByteStream, Error>
 where
-    U: IntoUrl,
-    P: Serialize,
-    B: Into<Body>,
+    H: Into<String>,
+    P: Into<String>,
+    Q: Serialize,
+    J: Serialize,
 {
+    let mut url = Url::parse(&format!("http://{}", host_and_port.into()))
+        .map_err(Error::wrap(StatusCode::BAD_REQUEST.as_u16()))?
+        .join(&path.into())
+        .map_err(Error::wrap(StatusCode::BAD_REQUEST.as_u16()))?;
+    let params = params
+        .map_or(Ok(None), |q| to_query(q).map(Some))
+        .map_err(Error::wrap(StatusCode::BAD_REQUEST.as_u16()))?;
+    url.set_query(params.as_deref());
     let mut builder = Client::new()
         .request(method, url)
         .timeout(Duration::from_secs(10));
@@ -37,17 +53,23 @@ where
     if let Some(params) = params {
         builder = builder.query(&params);
     }
-    if let Some(body) = body {
-        builder = builder
-            .header("Content-Type", "application/json")
-            .body(body);
+    match body {
+        RequestBody::Json(body) => {
+            let json = serde_json::to_string(&body)
+                .map_err(Error::wrap(StatusCode::BAD_REQUEST.as_u16()))?;
+            builder = builder
+                .header("Content-Type", "application/json")
+                .body(json);
+        }
+        RequestBody::MultipartForm(form) => {
+            builder = builder.multipart(form);
+        }
+        RequestBody::None => {}
     }
-    if let Some(multipart) = multipart {
-        builder = builder.multipart(multipart);
-    }
-    let resp = builder.send().await.map_err(|e| {
-        Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
-    })?;
+    let resp = builder
+        .send()
+        .await
+        .map_err(Error::wrap(StatusCode::INTERNAL_SERVER_ERROR.as_u16()))?;
     if !resp.status().is_success() {
         let status_code = resp.status();
         let reason = resp.text().await.map_err(|e| {

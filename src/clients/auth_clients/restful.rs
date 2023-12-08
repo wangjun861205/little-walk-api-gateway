@@ -1,14 +1,19 @@
+use std::io::ErrorKind;
+
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use crate::utils::io::stream_to_bytes;
-use crate::utils::restful::{make_request, parse_url};
+use crate::utils::restful::{make_request, parse_url, RequestBody};
 use crate::{
     core::clients::auth::AuthClient as IAuthClient, utils::restful::request,
 };
+use futures::io::BufReader;
+use futures::{Stream, StreamExt, TryStreamExt};
 use http::StatusCode;
 use reqwest::{Client, Method};
 use serde::{Deserialize, Serialize};
-use serde_json::from_slice;
+use serde_json::{from_slice, StreamDeserializer};
+use std::io::Read;
 
 #[derive(Clone)]
 pub struct AuthClient {
@@ -47,18 +52,13 @@ pub struct VerifyTokenResp {
 
 impl IAuthClient for AuthClient {
     async fn exists_user(&self, phone: &str) -> Result<bool, Error> {
-        let url = parse_url(
+        let body = make_request(
+            Method::GET,
             &self.host_and_port,
             &format!("/phones/{}/exists", phone),
             None,
-        )?;
-        let body = make_request(
-            Method::GET,
-            url,
-            None,
-            Option::<(String, String)>::None,
-            Option::<Vec<u8>>::None,
-            None,
+            Option::<()>::None,
+            RequestBody::<()>::None,
         )
         .await?;
         let bs = stream_to_bytes(body).await?;
@@ -69,18 +69,13 @@ impl IAuthClient for AuthClient {
     }
 
     async fn generate_token(&self, phone: &str) -> Result<ByteStream, Error> {
-        let url = parse_url(
+        make_request(
+            Method::PUT,
             &self.host_and_port,
             &format!("/phones/{}/tokens", phone),
             None,
-        )?;
-        make_request(
-            Method::PUT,
-            url,
-            None,
-            Option::<(String, String)>::None,
-            Option::<Vec<u8>>::None,
-            None,
+            Option::<()>::None,
+            RequestBody::<()>::None,
         )
         .await
     }
@@ -90,22 +85,16 @@ impl IAuthClient for AuthClient {
         phone: &str,
         password: &str,
     ) -> Result<ByteStream, Error> {
-        let url = parse_url(&self.host_and_port, "/login", None)?;
         make_request(
             Method::PUT,
-            url,
+            &self.host_and_port,
+            "/login",
             None,
-            Option::<(String, String)>::None,
-            Some(
-                serde_json::to_string(&LoginReq {
-                    phone: phone.into(),
-                    password: password.into(),
-                })
-                .map_err(|e| {
-                    Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
-                })?,
-            ),
-            None,
+            Option::<()>::None,
+            RequestBody::Json(LoginReq {
+                phone: phone.into(),
+                password: password.into(),
+            }),
         )
         .await
     }
@@ -115,22 +104,16 @@ impl IAuthClient for AuthClient {
         phone: &str,
         password: &str,
     ) -> Result<ByteStream, Error> {
-        let url = parse_url(&self.host_and_port, "/signup", None)?;
         make_request(
             Method::POST,
-            url,
+            &self.host_and_port,
+            "/signup",
             None,
-            Option::<(String, String)>::None,
-            Some(
-                serde_json::to_string(&SignupReq {
-                    phone: phone.into(),
-                    password: password.into(),
-                })
-                .map_err(|e| {
-                    Error::new(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
-                })?,
-            ),
-            None,
+            Option::<()>::None,
+            RequestBody::Json(SignupReq {
+                phone: phone.into(),
+                password: password.into(),
+            }),
         )
         .await
     }

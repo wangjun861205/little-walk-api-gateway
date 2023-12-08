@@ -1,6 +1,6 @@
 use crate::core::error::Error;
 use bytes::{BufMut, Bytes, BytesMut};
-use futures::{stream, Stream, StreamExt, TryStreamExt};
+use futures::{Stream, TryStreamExt};
 
 pub async fn stream_to_bytes(
     stream: impl Stream<Item = Result<Bytes, Error>>,
