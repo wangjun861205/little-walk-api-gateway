@@ -10,7 +10,6 @@ use crate::core::{
 };
 use bytes::Bytes;
 use futures::{future::try_join_all, Stream};
-use nb_serde_query::Array;
 use reqwest::StatusCode;
 use std::pin::Pin;
 
@@ -228,7 +227,7 @@ where
                 let dogs = self
                     .dog_client
                     .query_dogs(&DogQuery {
-                        id_in: Some(Array(r.dog_ids.clone())),
+                        id_in: Some(r.dog_ids.clone()),
                         ..Default::default()
                     })
                     .await?;
@@ -236,5 +235,26 @@ where
             })
             .collect::<Vec<_>>();
         try_join_all(fs).await
+    }
+
+    pub(crate) async fn transform_walk_request_response(
+        &self,
+        bytes: Bytes,
+    ) -> Result<Bytes, Error> {
+        let req: crate::core::clients::walk_request::WalkRequest =
+            serde_json::from_slice(&bytes).map_err(Error::wrap(
+                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            ))?;
+        let dogs = self
+            .dog_client
+            .query_dogs(&DogQuery {
+                id_in: Some(req.dog_ids.clone()),
+                ..Default::default()
+            })
+            .await?;
+        let res = WalkRequest::from((req, dogs));
+        Ok(serde_json::to_vec(&res)
+            .map_err(Error::wrap(StatusCode::INTERNAL_SERVER_ERROR.as_u16()))?
+            .into())
     }
 }

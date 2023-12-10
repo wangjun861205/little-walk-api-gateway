@@ -1,7 +1,10 @@
 use std::pin::Pin;
 
 use actix_web::{web::Bytes, Handler, HttpRequest, HttpResponse};
-use futures::Future;
+use bytes::{BufMut, BytesMut};
+use futures::{
+    Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt,
+};
 use http::StatusCode;
 use reqwest::{header::HeaderMap, Client, Method};
 use serde::Deserialize;
@@ -36,15 +39,24 @@ fn parse_url(
     Ok(url)
 }
 
-pub(crate) fn pass_through(
+pub(crate) fn pass_through<P, F, B>(
     host_and_port: &str,
     path: Option<&str>,
-) -> impl Handler<(HttpRequest, Bytes), Output = Result<HttpResponse, Error>> {
+    response_processor_builder: B,
+) -> impl Handler<(HttpRequest, Bytes), Output = Result<HttpResponse, Error>>
+where
+    B: FnOnce() -> P + Clone,
+    P: FnOnce(Bytes) -> F,
+    P: Clone + 'static,
+    F: Future<Output = Result<Bytes, Error>> + Send,
+{
     let host_and_port = host_and_port.to_owned();
     let path = path.map(|p| p.to_owned());
+    let response_processor = response_processor_builder.clone()();
     move |req: HttpRequest,
           bytes: Bytes|
           -> Pin<Box<dyn Future<Output = Result<HttpResponse, Error>>>> {
+        let response_processor = response_processor.clone();
         let host_and_port = host_and_port.clone();
         let path = if let Some(path) = path.clone() {
             path.clone()
@@ -82,10 +94,11 @@ pub(crate) fn pass_through(
                     }
                 }
                 builder = builder.headers(headers).body(bytes);
-                Box::pin(async {
+                Box::pin(async move {
                     let stream = request(builder).await?;
                     let bytes = stream_to_bytes(stream).await?;
-                    Ok(HttpResponse::Ok().body(bytes))
+                    let res = response_processor(bytes).await?;
+                    Ok(HttpResponse::Ok().body(res))
                 })
             }
             Err(e) => Box::pin(async move {

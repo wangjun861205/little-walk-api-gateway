@@ -18,9 +18,7 @@ use crate::core::{
     entities::WalkRequest,
     service::Service,
 };
-use std::future::Future;
 
-use nb_serde_query::from_str;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

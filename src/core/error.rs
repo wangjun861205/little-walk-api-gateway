@@ -1,7 +1,7 @@
 use std::error::Error as StdError;
 use std::fmt::Display;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error {
     pub status_code: u16,
     pub cause: String,

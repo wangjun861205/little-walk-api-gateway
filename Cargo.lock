@@ -1141,12 +1141,14 @@ dependencies = [
 
 [[package]]
 name = "nb-serde-query"
-version = "0.3.1"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71f9a6a8f7c6ddddca1df417db2e25d48848f686dc531b9c9ef60473881b62d2"
+checksum = "f64fbda41b86bc964d81be086bbce472a825043e1165cacce4298996ae4e5b62"
 dependencies = [
+ "actix-web",
  "anyhow",
  "base64",
+ "futures",
  "hex",
  "serde",
  "serde_json",

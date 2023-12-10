@@ -27,7 +27,7 @@ use nb_from_env::{FromEnv, FromEnvDerive};
 use std::fs::create_dir_all;
 use std::sync::Arc;
 
-#[derive(FromEnvDerive)]
+#[derive(FromEnvDerive, Clone)]
 pub struct Config {
     pub listen_address: String,
     #[env_default("info")]
@@ -48,7 +48,7 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     let config = Config::from_env();
     env_logger::init_from_env(
-        env_logger::Env::new().default_filter_or(config.log_level),
+        env_logger::Env::new().default_filter_or(&config.log_level),
     );
     let service = Data::new(Service::new(
         AuthClient::new(&config.auth_service_address),
@@ -68,26 +68,25 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(logger)
             .app_data(service.clone())
-            .service(
-                scope("accounts").default_service(
-                    web::route()
-                        .to(pass_through(&config.auth_service_address, None)),
-                ),
-            )
+            .service(scope("accounts").default_service(web::route().to(
+                pass_through(&config.auth_service_address, None, || {
+                    |bytes| Box::pin(async { Ok(bytes) })
+                }),
+            )))
             .service(
                 scope("apis")
                     .wrap(auth_middleware_factory.clone())
-                    .service(scope("dogs").default_service(
-                        web::route().to(pass_through(
-                            &config.dog_service_address,
-                            None,
-                        )),
-                    ))
+                    .service(scope("dogs").default_service(web::route().to(
+                        pass_through(&config.dog_service_address, None, || {
+                            |bytes| Box::pin(async { Ok(bytes) })
+                        }),
+                    )))
                     .service(
                         scope("/walk_requests")
                             .default_service(web::route().to(pass_through(
                                 &config.walk_request_service_address,
                                 None,
+                                || |bytes| Box::pin(async { Ok(bytes) }),
                             )))
                             .route(
                                 "nearby",
@@ -100,8 +99,72 @@ async fn main() -> std::io::Result<()> {
                                         WalkRequestClient,
                                     >,
                                 ),
+                            )
+                            .route(
+                                "/{id}/accepted_by",
+                                web::route().to(pass_through(
+                                    &config.walk_request_service_address,
+                                    None,
+                                    || {
+                                        let service = service.clone();
+                                        move |bytes| {
+                                            Box::pin(async move {
+                                                service
+                                            .transform_walk_request_response(
+                                                bytes,
+                                            )
+                                            .await
+                                            })
+                                        }
+                                    },
+                                )),
+                            )
+                            .route(
+                                "/{id}/start",
+                                web::route().to(pass_through(
+                                    &config.walk_request_service_address,
+                                    None,
+                                    || {
+                                        let service = service.clone();
+                                        move |bytes| {
+                                            Box::pin(async move {
+                                                service
+                                            .transform_walk_request_response(
+                                                bytes,
+                                            )
+                                            .await
+                                            })
+                                        }
+                                    },
+                                )),
+                            )
+                            .route(
+                                "/{id}/finish",
+                                web::route().to(pass_through(
+                                    &config.walk_request_service_address,
+                                    None,
+                                    || {
+                                        let service = service.clone();
+                                        move |bytes| {
+                                            Box::pin(async move {
+                                                service
+                                            .transform_walk_request_response(
+                                                bytes,
+                                            )
+                                            .await
+                                            })
+                                        }
+                                    },
+                                )),
                             ),
-                    ),
+                    )
+                    .service(scope("/uploads").default_service(
+                        web::route().to(pass_through(
+                            &config.upload_service_address,
+                            None,
+                            || |bytes| Box::pin(async { Ok(bytes) }),
+                        )),
+                    )),
             )
     })
     .bind(config.listen_address)?

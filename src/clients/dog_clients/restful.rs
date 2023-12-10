@@ -65,7 +65,7 @@ impl IDogClient for DogClient {
     async fn query_dogs(&self, query: &DogQuery) -> Result<Vec<Dog>, Error> {
         let url = parse_url(
             &self.host_and_port,
-            "/dogs",
+            "/apis/dogs",
             to_query_string(query)?.as_deref(),
         )?;
         let builder = Client::new().request(Method::GET, url);
