@@ -21,7 +21,7 @@ use clients::{
 };
 use core::service::Service;
 use docs::api::generate_api_doc;
-use handlers::common::pass_through;
+use handlers::{common::pass_through, walk_request::fill_dogs};
 use middlewares::auth::AuthMiddlewareFactory;
 use nb_from_env::{FromEnv, FromEnvDerive};
 use std::fs::create_dir_all;
@@ -69,24 +69,26 @@ async fn main() -> std::io::Result<()> {
             .wrap(logger)
             .app_data(service.clone())
             .service(scope("accounts").default_service(web::route().to(
-                pass_through(&config.auth_service_address, None, || {
-                    |bytes| Box::pin(async { Ok(bytes) })
+                pass_through(&config.auth_service_address, None, |bytes| {
+                    Box::pin(async { Ok(bytes) })
                 }),
             )))
             .service(
                 scope("apis")
                     .wrap(auth_middleware_factory.clone())
                     .service(scope("dogs").default_service(web::route().to(
-                        pass_through(&config.dog_service_address, None, || {
-                            |bytes| Box::pin(async { Ok(bytes) })
-                        }),
+                        pass_through(
+                            &config.dog_service_address,
+                            None,
+                            |bytes| Box::pin(async { Ok(bytes) }),
+                        ),
                     )))
                     .service(
                         scope("/walk_requests")
                             .default_service(web::route().to(pass_through(
                                 &config.walk_request_service_address,
                                 None,
-                                || |bytes| Box::pin(async { Ok(bytes) }),
+                                |bytes| Box::pin(async { Ok(bytes) }),
                             )))
                             .route(
                                 "nearby",
@@ -105,18 +107,7 @@ async fn main() -> std::io::Result<()> {
                                 web::route().to(pass_through(
                                     &config.walk_request_service_address,
                                     None,
-                                    || {
-                                        let service = service.clone();
-                                        move |bytes| {
-                                            Box::pin(async move {
-                                                service
-                                            .transform_walk_request_response(
-                                                bytes,
-                                            )
-                                            .await
-                                            })
-                                        }
-                                    },
+                                    fill_dogs(service.clone()),
                                 )),
                             )
                             .route(
@@ -124,18 +115,7 @@ async fn main() -> std::io::Result<()> {
                                 web::route().to(pass_through(
                                     &config.walk_request_service_address,
                                     None,
-                                    || {
-                                        let service = service.clone();
-                                        move |bytes| {
-                                            Box::pin(async move {
-                                                service
-                                            .transform_walk_request_response(
-                                                bytes,
-                                            )
-                                            .await
-                                            })
-                                        }
-                                    },
+                                    fill_dogs(service.clone()),
                                 )),
                             )
                             .route(
@@ -143,18 +123,7 @@ async fn main() -> std::io::Result<()> {
                                 web::route().to(pass_through(
                                     &config.walk_request_service_address,
                                     None,
-                                    || {
-                                        let service = service.clone();
-                                        move |bytes| {
-                                            Box::pin(async move {
-                                                service
-                                            .transform_walk_request_response(
-                                                bytes,
-                                            )
-                                            .await
-                                            })
-                                        }
-                                    },
+                                    fill_dogs(service.clone()),
                                 )),
                             ),
                     )
@@ -162,7 +131,7 @@ async fn main() -> std::io::Result<()> {
                         web::route().to(pass_through(
                             &config.upload_service_address,
                             None,
-                            || |bytes| Box::pin(async { Ok(bytes) }),
+                            |bytes| Box::pin(async { Ok(bytes) }),
                         )),
                     )),
             )

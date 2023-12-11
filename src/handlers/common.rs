@@ -39,20 +39,18 @@ fn parse_url(
     Ok(url)
 }
 
-pub(crate) fn pass_through<P, F, B>(
+pub(crate) fn pass_through<P, F>(
     host_and_port: &str,
     path: Option<&str>,
-    response_processor_builder: B,
+    response_processor: P,
 ) -> impl Handler<(HttpRequest, Bytes), Output = Result<HttpResponse, Error>>
 where
-    B: FnOnce() -> P + Clone,
     P: FnOnce(Bytes) -> F,
     P: Clone + 'static,
-    F: Future<Output = Result<Bytes, Error>> + Send,
+    F: Future<Output = Result<Bytes, Error>> + 'static,
 {
     let host_and_port = host_and_port.to_owned();
     let path = path.map(|p| p.to_owned());
-    let response_processor = response_processor_builder.clone()();
     move |req: HttpRequest,
           bytes: Bytes|
           -> Pin<Box<dyn Future<Output = Result<HttpResponse, Error>>>> {

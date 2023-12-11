@@ -6,20 +6,61 @@ use actix_web::{
     Error, FromRequest,
 };
 
-use crate::utils::restful::Query;
+use bytes::Bytes;
+use futures::Future;
+use http::StatusCode;
+
+use crate::{core::requests::DogQuery, utils::restful::Query};
 
 use crate::core::{
     clients::{
         auth::AuthClient, dog::DogClient,
         sms_verification_code::SMSVerificationCodeClient, upload::UploadClient,
-        walk_request,
+        walk_request::WalkRequestClient,
     },
     common::Pagination,
     entities::WalkRequest,
+    error::Error as CoreError,
     service::Service,
 };
 
 use serde::{Deserialize, Serialize};
+
+pub(crate) fn fill_dogs<A, U, S, D, R>(
+    service: Data<Service<A, U, S, D, R>>,
+) -> impl FnOnce(
+    Bytes,
+) -> Pin<
+    Box<dyn Future<Output = Result<Bytes, CoreError>> + 'static>,
+> + Clone
+where
+    A: AuthClient + 'static,
+    U: UploadClient + 'static,
+    S: SMSVerificationCodeClient + 'static,
+    D: DogClient + 'static,
+    R: WalkRequestClient + 'static,
+{
+    |bytes: Bytes| {
+        Box::pin(async move {
+            let req: crate::core::clients::walk_request::WalkRequest =
+                serde_json::from_slice(&bytes).map_err(CoreError::wrap(
+                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                ))?;
+            let dogs = service
+                .query_dogs(&DogQuery {
+                    id_in: Some(req.dog_ids.clone()),
+                    ..Default::default()
+                })
+                .await?;
+            let res = WalkRequest::from((req, dogs));
+            Ok(serde_json::to_vec(&res)
+                .map_err(CoreError::wrap(
+                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                ))?
+                .into())
+        })
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NearbyRequestsParams {
@@ -37,7 +78,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: DogClient,
-    R: walk_request::WalkRequestClient,
+    R: WalkRequestClient,
 {
     Ok(Json(
         service

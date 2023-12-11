@@ -8,12 +8,16 @@ use crate::core::{
     error::Error,
     requests::DogQuery,
 };
+use actix_web::web::Data;
 use bytes::Bytes;
-use futures::{future::try_join_all, Stream};
+use futures::{future::try_join_all, Future, Stream};
 use reqwest::StatusCode;
 use std::pin::Pin;
 
-use super::common::Pagination;
+use super::{
+    clients::{dog::DogClient, walk_request::WalkRequestClient},
+    common::Pagination,
+};
 
 pub type ByteStream =
     Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send + Sync>>;
@@ -237,24 +241,10 @@ where
         try_join_all(fs).await
     }
 
-    pub(crate) async fn transform_walk_request_response(
+    pub async fn query_dogs(
         &self,
-        bytes: Bytes,
-    ) -> Result<Bytes, Error> {
-        let req: crate::core::clients::walk_request::WalkRequest =
-            serde_json::from_slice(&bytes).map_err(Error::wrap(
-                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            ))?;
-        let dogs = self
-            .dog_client
-            .query_dogs(&DogQuery {
-                id_in: Some(req.dog_ids.clone()),
-                ..Default::default()
-            })
-            .await?;
-        let res = WalkRequest::from((req, dogs));
-        Ok(serde_json::to_vec(&res)
-            .map_err(Error::wrap(StatusCode::INTERNAL_SERVER_ERROR.as_u16()))?
-            .into())
+        query: &DogQuery,
+    ) -> Result<Vec<dog::Dog>, Error> {
+        self.dog_client.query_dogs(query).await
     }
 }
