@@ -22,13 +22,14 @@ use super::{
 pub type ByteStream =
     Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send + Sync>>;
 
+#[derive(Clone)]
 pub struct Service<A, U, S, D, R>
 where
     A: AuthClient,
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: dog::DogClient,
-    R: walk_request::WalkRequestClient,
+    R: WalkRequestClient,
 {
     auth_client: A,
     upload_client: U,
@@ -43,7 +44,7 @@ where
     U: UploadClient,
     S: SMSVerificationCodeClient,
     D: dog::DogClient,
-    R: walk_request::WalkRequestClient,
+    R: WalkRequestClient,
 {
     pub fn new(
         auth_client: A,
@@ -241,10 +242,46 @@ where
         try_join_all(fs).await
     }
 
-    pub async fn query_dogs(
+    pub(crate) fn no_op_processor(
         &self,
-        query: &DogQuery,
-    ) -> Result<Vec<dog::Dog>, Error> {
-        self.dog_client.query_dogs(query).await
+    ) -> impl FnOnce(
+        Bytes,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<Bytes, Error>> + 'static>,
+    > + Clone
+           + 'static {
+        |bytes| Box::pin(async move { Ok(bytes) })
+    }
+
+    pub(crate) fn fill_dogs_processor(
+        &self,
+    ) -> impl FnOnce(
+        Bytes,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<Bytes, Error>> + 'static>,
+    > + Clone
+           + 'static {
+        let service = self.clone();
+        move |bytes: Bytes| {
+            Box::pin(async move {
+                let req: crate::core::clients::walk_request::WalkRequest =
+                    serde_json::from_slice(&bytes).map_err(Error::wrap(
+                        StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                    ))?;
+                let dogs = service
+                    .dog_client
+                    .query_dogs(&DogQuery {
+                        id_in: Some(req.dog_ids.clone()),
+                        ..Default::default()
+                    })
+                    .await?;
+                let res = WalkRequest::from((req, dogs));
+                Ok(serde_json::to_vec(&res)
+                    .map_err(Error::wrap(
+                        StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                    ))?
+                    .into())
+            })
+        }
     }
 }

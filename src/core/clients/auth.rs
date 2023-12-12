@@ -2,7 +2,7 @@ use crate::core::error::Error;
 
 use crate::core::service::ByteStream;
 
-pub trait AuthClient {
+pub trait AuthClient: Clone + 'static {
     async fn signup(
         &self,
         phone: &str,

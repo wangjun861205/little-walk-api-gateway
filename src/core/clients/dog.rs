@@ -31,7 +31,7 @@ pub struct Dog {
     pub updated_at: DateTime<Utc>,
 }
 
-pub trait DogClient {
+pub trait DogClient: Clone + 'static {
     async fn add_dog(
         &self,
         owner_id: &str,

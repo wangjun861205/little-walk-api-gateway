@@ -2,7 +2,7 @@ use crate::core::error::Error;
 
 use crate::core::service::ByteStream;
 
-pub trait UploadClient {
+pub trait UploadClient: Clone + 'static {
     async fn upload(
         &self,
         content_type_header: &str,

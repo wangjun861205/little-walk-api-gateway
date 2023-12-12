@@ -5,6 +5,7 @@ use crate::utils::restful::{make_request, parse_url};
 use crate::{core::error::Error, utils::restful::request};
 use reqwest::{Body, Client, Method};
 
+#[derive(Clone)]
 pub struct UploadClient {
     host_and_port: String,
 }

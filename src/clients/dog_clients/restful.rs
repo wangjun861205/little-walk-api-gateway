@@ -19,6 +19,7 @@ use super::responses::IsOwnerOfTheDogResp;
 use bytes::Bytes;
 use futures::TryStreamExt;
 
+#[derive(Debug, Clone)]
 pub struct DogClient {
     host_and_port: String,
 }

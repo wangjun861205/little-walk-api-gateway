@@ -12,6 +12,7 @@ use http::StatusCode;
 use reqwest::Method;
 use serde::Deserialize;
 
+#[derive(Debug, Clone)]
 pub struct SMSVerificationCodeClient {
     host_and_port: String,
 }

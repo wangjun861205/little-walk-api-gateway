@@ -21,7 +21,7 @@ use clients::{
 };
 use core::service::Service;
 use docs::api::generate_api_doc;
-use handlers::{common::pass_through, walk_request::fill_dogs};
+use handlers::common::pass_through;
 use middlewares::auth::AuthMiddlewareFactory;
 use nb_from_env::{FromEnv, FromEnvDerive};
 use std::fs::create_dir_all;
@@ -69,9 +69,11 @@ async fn main() -> std::io::Result<()> {
             .wrap(logger)
             .app_data(service.clone())
             .service(scope("accounts").default_service(web::route().to(
-                pass_through(&config.auth_service_address, None, |bytes| {
-                    Box::pin(async { Ok(bytes) })
-                }),
+                pass_through(
+                    &config.auth_service_address,
+                    None,
+                    service.no_op_processor(),
+                ),
             )))
             .service(
                 scope("apis")
@@ -80,7 +82,7 @@ async fn main() -> std::io::Result<()> {
                         pass_through(
                             &config.dog_service_address,
                             None,
-                            |bytes| Box::pin(async { Ok(bytes) }),
+                            service.no_op_processor(),
                         ),
                     )))
                     .service(
@@ -88,7 +90,7 @@ async fn main() -> std::io::Result<()> {
                             .default_service(web::route().to(pass_through(
                                 &config.walk_request_service_address,
                                 None,
-                                |bytes| Box::pin(async { Ok(bytes) }),
+                                service.no_op_processor(),
                             )))
                             .route(
                                 "nearby",
@@ -102,36 +104,43 @@ async fn main() -> std::io::Result<()> {
                                     >,
                                 ),
                             )
-                            .route(
-                                "/{id}/accepted_by",
+                            .service(scope("/{id}").default_service(
                                 web::route().to(pass_through(
                                     &config.walk_request_service_address,
                                     None,
-                                    fill_dogs(service.clone()),
+                                    service.fill_dogs_processor(),
                                 )),
-                            )
-                            .route(
-                                "/{id}/start",
-                                web::route().to(pass_through(
-                                    &config.walk_request_service_address,
-                                    None,
-                                    fill_dogs(service.clone()),
-                                )),
-                            )
-                            .route(
-                                "/{id}/finish",
-                                web::route().to(pass_through(
-                                    &config.walk_request_service_address,
-                                    None,
-                                    fill_dogs(service.clone()),
-                                )),
-                            ),
+                            )),
+                        // .route(
+                        //     "/{id}/accepted_by",
+                        //     web::route().to(pass_through(
+                        //         &config.walk_request_service_address,
+                        //         None,
+                        //         service.fill_dogs_processor(),
+                        //     )),
+                        // )
+                        // .route(
+                        //     "/{id}/start",
+                        //     web::route().to(pass_through(
+                        //         &config.walk_request_service_address,
+                        //         None,
+                        //         service.fill_dogs_processor(),
+                        //     )),
+                        // )
+                        // .route(
+                        //     "/{id}/finish",
+                        //     web::route().to(pass_through(
+                        //         &config.walk_request_service_address,
+                        //         None,
+                        //         service.fill_dogs_processor(),
+                        //     )),
+                        // ),
                     )
                     .service(scope("/uploads").default_service(
                         web::route().to(pass_through(
                             &config.upload_service_address,
                             None,
-                            |bytes| Box::pin(async { Ok(bytes) }),
+                            service.no_op_processor(),
                         )),
                     )),
             )

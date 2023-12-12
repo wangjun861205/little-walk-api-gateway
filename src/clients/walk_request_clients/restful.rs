@@ -8,6 +8,7 @@ use crate::{
     utils::restful::{parse_url, request, to_query_string},
 };
 
+#[derive(Debug, Clone)]
 pub(crate) struct WalkRequestClient {
     host_and_port: String,
 }

@@ -45,7 +45,7 @@ pub struct WalkRequestQuery {
     pub pagination: Option<Pagination>,
 }
 
-pub trait WalkRequestClient {
+pub trait WalkRequestClient: Clone + 'static {
     async fn query_walk_requests(
         &self,
         query: WalkRequestQuery,
