@@ -85,6 +85,13 @@ async fn main() -> std::io::Result<()> {
                             service.no_op_processor(),
                         ),
                     )))
+                    .service(scope("breeds").default_service(web::route().to(
+                        pass_through(
+                            &config.dog_service_address,
+                            None,
+                            service.no_op_processor(),
+                        ),
+                    )))
                     .service(
                         scope("/walk_requests")
                             .default_service(web::route().to(pass_through(
@@ -111,30 +118,6 @@ async fn main() -> std::io::Result<()> {
                                     service.fill_dogs_processor(),
                                 )),
                             )),
-                        // .route(
-                        //     "/{id}/accepted_by",
-                        //     web::route().to(pass_through(
-                        //         &config.walk_request_service_address,
-                        //         None,
-                        //         service.fill_dogs_processor(),
-                        //     )),
-                        // )
-                        // .route(
-                        //     "/{id}/start",
-                        //     web::route().to(pass_through(
-                        //         &config.walk_request_service_address,
-                        //         None,
-                        //         service.fill_dogs_processor(),
-                        //     )),
-                        // )
-                        // .route(
-                        //     "/{id}/finish",
-                        //     web::route().to(pass_through(
-                        //         &config.walk_request_service_address,
-                        //         None,
-                        //         service.fill_dogs_processor(),
-                        //     )),
-                        // ),
                     )
                     .service(scope("/uploads").default_service(
                         web::route().to(pass_through(
