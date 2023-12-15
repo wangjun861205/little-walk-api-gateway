@@ -72,6 +72,7 @@ async fn main() -> std::io::Result<()> {
                 pass_through(
                     &config.auth_service_address,
                     None,
+                    service.no_op_request_body_processor(),
                     service.no_op_processor(),
                 ),
             )))
@@ -82,6 +83,7 @@ async fn main() -> std::io::Result<()> {
                         pass_through(
                             &config.dog_service_address,
                             None,
+                            service.no_op_request_body_processor(),
                             service.no_op_processor(),
                         ),
                     )))
@@ -89,6 +91,7 @@ async fn main() -> std::io::Result<()> {
                         pass_through(
                             &config.dog_service_address,
                             None,
+                            service.no_op_request_body_processor(),
                             service.no_op_processor(),
                         ),
                     )))
@@ -97,6 +100,7 @@ async fn main() -> std::io::Result<()> {
                             .default_service(web::route().to(pass_through(
                                 &config.walk_request_service_address,
                                 None,
+                                service.no_op_request_body_processor(),
                                 service.no_op_processor(),
                             )))
                             .route(
@@ -115,6 +119,7 @@ async fn main() -> std::io::Result<()> {
                                 web::route().to(pass_through(
                                     &config.walk_request_service_address,
                                     None,
+                                    service.no_op_request_body_processor(),
                                     service.fill_dogs_processor(),
                                 )),
                             )),
@@ -123,6 +128,7 @@ async fn main() -> std::io::Result<()> {
                         web::route().to(pass_through(
                             &config.upload_service_address,
                             None,
+                            service.no_op_request_body_processor(),
                             service.no_op_processor(),
                         )),
                     )),

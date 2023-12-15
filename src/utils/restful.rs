@@ -1,6 +1,7 @@
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use actix_web::{FromRequest, HttpRequest};
+use futures::future::ready;
 use futures::TryStreamExt;
 use http::StatusCode;
 use nb_serde_query::from_str;
@@ -153,5 +154,59 @@ where
             Ok(v) => futures::future::ready(Ok(Query(v))),
             Err(e) => futures::future::ready(Err(e)),
         }
+    }
+}
+
+pub struct UserID(pub String);
+
+impl FromRequest for UserID {
+    type Error = Error;
+    type Future = futures::future::Ready<Result<Self, Self::Error>>;
+
+    fn extract(req: &HttpRequest) -> Self::Future {
+        if let Some(header) = req.headers().get("X-User-ID") {
+            match header.to_str() {
+                Ok(user_id) => {
+                    return futures::future::ready(Ok(UserID(
+                        user_id.to_string(),
+                    )))
+                }
+                Err(e) => {
+                    return futures::future::ready(Err(Error::new(
+                        StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                        e,
+                    )))
+                }
+            }
+        }
+        futures::future::ready(Err(Error::new(
+            StatusCode::UNAUTHORIZED.as_u16(),
+            "no user id",
+        )))
+    }
+
+    fn from_request(
+        req: &HttpRequest,
+        payload: &mut actix_web::dev::Payload,
+    ) -> Self::Future {
+        if let Some(header) = req.headers().get("X-User-ID") {
+            match header.to_str() {
+                Ok(user_id) => {
+                    return futures::future::ready(Ok(UserID(
+                        user_id.to_string(),
+                    )))
+                }
+                Err(e) => {
+                    return futures::future::ready(Err(Error::new(
+                        StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                        e,
+                    )))
+                }
+            }
+        }
+        futures::future::ready(Err(Error::new(
+            StatusCode::UNAUTHORIZED.as_u16(),
+            "no user id",
+        )))
     }
 }

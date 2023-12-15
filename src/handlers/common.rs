@@ -39,15 +39,19 @@ fn parse_url(
     Ok(url)
 }
 
-pub(crate) fn pass_through<P, F>(
+pub(crate) fn pass_through<QP, RP, QF, RF>(
     host_and_port: &str,
     path: Option<&str>,
-    response_processor: P,
+    request_body_processor: QP,
+    response_processor: RP,
 ) -> impl Handler<(HttpRequest, Bytes), Output = Result<HttpResponse, Error>>
 where
-    P: FnOnce(Bytes) -> F,
-    P: Clone + 'static,
-    F: Future<Output = Result<Bytes, Error>> + 'static,
+    QP: FnOnce(&HttpRequest, Bytes) -> QF,
+    QP: Clone + 'static,
+    RP: FnOnce(Bytes) -> RF,
+    RP: Clone + 'static,
+    QF: Future<Output = Result<Bytes, Error>> + 'static,
+    RF: Future<Output = Result<Bytes, Error>> + 'static,
 {
     let host_and_port = host_and_port.to_owned();
     let path = path.map(|p| p.to_owned());
@@ -91,8 +95,10 @@ where
                         })
                     }
                 }
-                builder = builder.headers(headers).body(bytes);
+                let request_body_processor = request_body_processor.clone();
                 Box::pin(async move {
+                    let bytes = request_body_processor(&req, bytes).await?;
+                    builder = builder.headers(headers).body(bytes);
                     let stream = request(builder).await?;
                     let bytes = stream_to_bytes(stream).await?;
                     let res = response_processor(bytes).await?;

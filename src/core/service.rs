@@ -1,22 +1,31 @@
-use crate::core::{
-    clients::{
-        auth::AuthClient, dog,
-        sms_verification_code::SMSVerificationCodeClient, upload::UploadClient,
-        walk_request,
+use crate::{
+    core::{
+        clients::{
+            auth::AuthClient, dog,
+            sms_verification_code::SMSVerificationCodeClient,
+            upload::UploadClient, walk_request,
+        },
+        entities::WalkRequest,
+        error::Error,
+        requests::DogQuery,
     },
-    entities::WalkRequest,
-    error::Error,
-    requests::DogQuery,
+    utils::restful::UserID,
 };
-use actix_web::web::Data;
+use actix_web::{web::Data, FromRequest, HttpRequest};
 use bytes::Bytes;
-use futures::{future::try_join_all, Future, Stream};
+use futures::{
+    future::{ready, try_join_all},
+    Future, Stream,
+};
+use little_walk_dog::core::repository::DogCreate;
 use reqwest::StatusCode;
 use std::pin::Pin;
+use utoipa::openapi::security::Http;
 
 use super::{
     clients::{dog::DogClient, walk_request::WalkRequestClient},
     common::Pagination,
+    requests::DogCreateIncome,
 };
 
 pub type ByteStream =
@@ -281,6 +290,35 @@ where
                         StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                     ))?
                     .into())
+            })
+        }
+    }
+
+    pub(crate) fn no_op_request_body_processor(
+        &self,
+    ) -> impl FnOnce(
+        &HttpRequest,
+        Bytes,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<Bytes, Error>> + 'static>,
+    > + Clone {
+        move |_req, bytes| Box::pin(ready(Ok(bytes)))
+    }
+
+    pub(crate) fn create_dog_request_body_processor(
+        &self,
+    ) -> impl FnOnce(
+        &HttpRequest,
+        Bytes,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<Bytes, Error>> + 'static>,
+    > + Clone {
+        move |req, bytes| {
+            let income: DogCreateIncome = serde_json::from_slice(&bytes)
+                .map_err(Error::wrap(StatusCode::BAD_REQUEST.as_u16()))?;
+            Box::pin(async move {
+                let user_id = UserID::extract(req).await?;
+                Ok()
             })
         }
     }
