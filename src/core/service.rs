@@ -318,7 +318,9 @@ where
                 .map_err(Error::wrap(StatusCode::BAD_REQUEST.as_u16()))?;
             Box::pin(async move {
                 let user_id = UserID::extract(req).await?;
-                Ok()
+                Ok(serde_json::to_string(DogCreate {
+                    owner_id: user_id.0,
+                }))
             })
         }
     }
