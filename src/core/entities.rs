@@ -36,8 +36,8 @@ pub struct Dog {
     pub owner_id: String,
     pub tags: Vec<String>,
     pub portrait_id: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    // pub created_at: DateTime<Utc>,
+    // pub updated_at: DateTime<Utc>,
 }
 
 impl From<dog::Dog> for Dog {
@@ -53,8 +53,8 @@ impl From<dog::Dog> for Dog {
             owner_id: value.owner_id,
             tags: value.tags,
             portrait_id: value.portrait_id,
-            created_at: value.created_at,
-            updated_at: value.updated_at,
+            // created_at: value.created_at,
+            // updated_at: value.updated_at,
         }
     }
 }

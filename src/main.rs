@@ -79,14 +79,24 @@ async fn main() -> std::io::Result<()> {
             .service(
                 scope("apis")
                     .wrap(auth_middleware_factory.clone())
-                    .service(scope("dogs").default_service(web::route().to(
-                        pass_through(
-                            &config.dog_service_address,
-                            None,
-                            service.no_op_request_body_processor(),
-                            service.no_op_processor(),
-                        ),
-                    )))
+                    .service(
+                        scope("dogs")
+                            .default_service(web::route().to(pass_through(
+                                &config.dog_service_address,
+                                None,
+                                service.no_op_request_body_processor(),
+                                service.no_op_processor(),
+                            )))
+                            .route(
+                                "",
+                                web::post().to(pass_through(
+                                    &config.dog_service_address,
+                                    None,
+                                    service.create_dog_request_body_processor(),
+                                    service.no_op_processor(),
+                                )),
+                            ),
+                    )
                     .service(scope("breeds").default_service(web::route().to(
                         pass_through(
                             &config.dog_service_address,
@@ -96,33 +106,30 @@ async fn main() -> std::io::Result<()> {
                         ),
                     )))
                     .service(
-                        scope("/walk_requests")
-                            .default_service(web::route().to(pass_through(
+                        scope("/walk_requests").default_service(
+                            web::route().to(pass_through(
                                 &config.walk_request_service_address,
                                 None,
                                 service.no_op_request_body_processor(),
                                 service.no_op_processor(),
-                            )))
-                            .route(
-                                "nearby",
-                                get().to(
-                                    handlers::walk_request::nearby_requests::<
-                                        AuthClient,
-                                        UploadClient,
-                                        SMSVerificationCodeClient,
-                                        DogClient,
-                                        WalkRequestClient,
-                                    >,
-                                ),
-                            )
-                            .service(scope("/{id}").default_service(
-                                web::route().to(pass_through(
-                                    &config.walk_request_service_address,
-                                    None,
-                                    service.no_op_request_body_processor(),
-                                    service.fill_dogs_processor(),
-                                )),
                             )),
+                        ), // .route(
+                           //     "nearby",
+                           //     pass_through(
+                           //         &config.walk_request_service_address,
+                           //         None,
+                           //         service.no_op_request_body_processor(),
+                           //         service.no_op_processor(),
+                           //     ),
+                           // )
+                           // .service(scope("/{id}").default_service(
+                           //     web::route().to(pass_through(
+                           //         &config.walk_request_service_address,
+                           //         None,
+                           //         service.no_op_request_body_processor(),
+                           //         service.fill_dogs_processor(),
+                           //     )),
+                           // )),
                     )
                     .service(scope("/uploads").default_service(
                         web::route().to(pass_through(

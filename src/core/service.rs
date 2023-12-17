@@ -18,6 +18,7 @@ use futures::{
     Future, Stream,
 };
 use little_walk_dog::core::repository::DogCreate;
+use reqwest::header::HeaderName;
 use reqwest::StatusCode;
 use std::pin::Pin;
 use utoipa::openapi::security::Http;
@@ -313,15 +314,33 @@ where
     ) -> Pin<
         Box<dyn Future<Output = Result<Bytes, Error>> + 'static>,
     > + Clone {
-        move |req, bytes| {
-            let income: DogCreateIncome = serde_json::from_slice(&bytes)
-                .map_err(Error::wrap(StatusCode::BAD_REQUEST.as_u16()))?;
-            Box::pin(async move {
-                let user_id = UserID::extract(req).await?;
-                Ok(serde_json::to_string(DogCreate {
-                    owner_id: user_id.0,
-                }))
-            })
+        move |req, bytes| match serde_json::from_slice::<DogCreateIncome>(
+            &bytes,
+        ) {
+            Ok(income) => {
+                let user_id_future = UserID::extract(req);
+                Box::pin(async move {
+                    let user_id = user_id_future.await?;
+                    let create = DogCreate {
+                        owner_id: user_id.0,
+                        name: income.name,
+                        gender: income.gender,
+                        breed: income.breed,
+                        birthday: income.birthday,
+                        tags: income.tags,
+                        portrait_id: income.portrait_id,
+                    };
+                    let bytes: Bytes =
+                        serde_json::to_vec(&create).map(|v| v.into()).map_err(
+                            |e| Error::new(StatusCode::BAD_REQUEST.as_u16(), e),
+                        )?;
+                    Ok(bytes)
+                })
+            }
+            Err(e) => Box::pin(ready(Err(Error::new(
+                StatusCode::BAD_REQUEST.as_u16(),
+                e,
+            )))),
         }
     }
 }

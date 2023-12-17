@@ -98,6 +98,7 @@ where
                 let request_body_processor = request_body_processor.clone();
                 Box::pin(async move {
                     let bytes = request_body_processor(&req, bytes).await?;
+                    headers.insert("Content-Length", bytes.len().into());
                     builder = builder.headers(headers).body(bytes);
                     let stream = request(builder).await?;
                     let bytes = stream_to_bytes(stream).await?;
