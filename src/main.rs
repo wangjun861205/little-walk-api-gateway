@@ -113,23 +113,7 @@ async fn main() -> std::io::Result<()> {
                                 service.no_op_request_body_processor(),
                                 service.no_op_processor(),
                             )),
-                        ), // .route(
-                           //     "nearby",
-                           //     pass_through(
-                           //         &config.walk_request_service_address,
-                           //         None,
-                           //         service.no_op_request_body_processor(),
-                           //         service.no_op_processor(),
-                           //     ),
-                           // )
-                           // .service(scope("/{id}").default_service(
-                           //     web::route().to(pass_through(
-                           //         &config.walk_request_service_address,
-                           //         None,
-                           //         service.no_op_request_body_processor(),
-                           //         service.fill_dogs_processor(),
-                           //     )),
-                           // )),
+                        ), 
                     )
                     .service(scope("/uploads").default_service(
                         web::route().to(pass_through(
