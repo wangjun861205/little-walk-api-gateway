@@ -11,10 +11,6 @@ pub struct DogQuery {
     pub pagination: Option<Pagination>,
 }
 
-pub struct DogUpdate {
-    pub portrait_id: Option<String>,
-}
-
 #[derive(Debug, Serialize)]
 pub struct DogPortraitUpdate {
     pub portrait_id: String,

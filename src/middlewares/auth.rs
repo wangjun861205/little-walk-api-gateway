@@ -1,10 +1,9 @@
-use actix_web::error::ErrorUnauthorized;
+use actix_web::error::{ErrorInternalServerError, ErrorUnauthorized};
 use actix_web::{
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     Error,
 };
 use reqwest::header::{HeaderName, HeaderValue};
-use serde::Deserialize;
 use std::future::Future;
 use std::pin::Pin;
 use std::{
@@ -68,11 +67,6 @@ where
     service: Arc<S>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct VerifyTokenResp {
-    is_ok: bool,
-}
-
 impl<C, S> Service<ServiceRequest> for AuthMiddlewareService<C, S>
 where
     S: Service<
@@ -103,15 +97,15 @@ where
                 return Box::pin(async move {
                     match auth_client.verify_token(&token).await {
                         Ok(id) => {
-                            req.headers_mut().insert(
+                            let uid_header_key =
                                 HeaderName::from_str("X-User-ID")
-                                    .expect("invalid header key: X-User-ID"),
-                                HeaderValue::from_str(&id).expect(&format!(
-                                    "invalid header value: {}",
-                                    id
-                                )),
-                            );
-                            return next_service.call(req).await;
+                                    .map_err(ErrorInternalServerError)?;
+                            let uid_header_value =
+                                HeaderValue::from_str(&id)
+                                    .map_err(ErrorInternalServerError)?;
+                            req.headers_mut()
+                                .insert(uid_header_key, uid_header_value);
+                            next_service.call(req).await
                         }
                         Err(e) => Err(ErrorUnauthorized(e)),
                     }

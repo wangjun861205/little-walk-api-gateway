@@ -1,10 +1,7 @@
 use std::pin::Pin;
 
 use actix_web::{web::Bytes, Handler, HttpRequest, HttpResponse};
-use bytes::{BufMut, BytesMut};
-use futures::{
-    Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt,
-};
+use futures::Future;
 use http::StatusCode;
 use reqwest::{header::HeaderMap, Client, Method};
 use serde::Deserialize;

@@ -1,7 +1,6 @@
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use actix_web::{FromRequest, HttpRequest};
-use futures::future::ready;
 use futures::TryStreamExt;
 use http::StatusCode;
 use nb_serde_query::from_str;
@@ -99,26 +98,26 @@ pub async fn request(builder: RequestBuilder) -> Result<ByteStream, Error> {
     })))
 }
 
-pub fn extract_user_id(req: &HttpRequest) -> Result<&str, Error> {
-    let user_id = req
-        .headers()
-        .get("X-User-ID")
-        .ok_or(Error::new(StatusCode::UNAUTHORIZED.as_u16(), "no user id"))?
-        .to_str()
-        .map_err(|e| Error::new(StatusCode::UNAUTHORIZED.as_u16(), e))?;
-    Ok(user_id)
-}
+// pub fn extract_user_id(req: &HttpRequest) -> Result<&str, Error> {
+//     let user_id = req
+//         .headers()
+//         .get("X-User-ID")
+//         .ok_or(Error::new(StatusCode::UNAUTHORIZED.as_u16(), "no user id"))?
+//         .to_str()
+//         .map_err(|e| Error::new(StatusCode::UNAUTHORIZED.as_u16(), e))?;
+//     Ok(user_id)
+// }
 
-pub fn to_query_string<T: Serialize>(
-    params: &T,
-) -> Result<Option<String>, Error> {
-    let s = to_query(params)
-        .map_err(|e| Error::new(StatusCode::BAD_REQUEST.as_u16(), e))?;
-    if s.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(s))
-}
+// pub fn to_query_string<T: Serialize>(
+//     params: &T,
+// ) -> Result<Option<String>, Error> {
+//     let s = to_query(params)
+//         .map_err(|e| Error::new(StatusCode::BAD_REQUEST.as_u16(), e))?;
+//     if s.is_empty() {
+//         return Ok(None);
+//     }
+//     Ok(Some(s))
+// }
 
 pub fn parse_url(
     host_and_port: &str,
@@ -187,7 +186,7 @@ impl FromRequest for UserID {
 
     fn from_request(
         req: &HttpRequest,
-        payload: &mut actix_web::dev::Payload,
+        _payload: &mut actix_web::dev::Payload,
     ) -> Self::Future {
         if let Some(header) = req.headers().get("X-User-ID") {
             match header.to_str() {

@@ -1,5 +1,3 @@
-use std::io::ErrorKind;
-
 use crate::core::error::Error;
 use crate::core::service::ByteStream;
 use crate::utils::io::stream_to_bytes;
@@ -7,13 +5,10 @@ use crate::utils::restful::{make_request, parse_url, RequestBody};
 use crate::{
     core::clients::auth::AuthClient as IAuthClient, utils::restful::request,
 };
-use futures::io::BufReader;
-use futures::{Stream, StreamExt, TryStreamExt};
 use http::StatusCode;
 use reqwest::{Client, Method};
 use serde::{Deserialize, Serialize};
-use serde_json::{from_slice, StreamDeserializer};
-use std::io::Read;
+use serde_json::from_slice;
 
 #[derive(Clone)]
 pub struct AuthClient {

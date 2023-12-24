@@ -1,30 +1,21 @@
 #![feature(iter_intersperse)]
 
-mod core;
-
 mod clients;
-mod docs;
+mod core;
 mod handlers;
 mod middlewares;
 mod utils;
 
+use crate::clients::auth_clients::restful::AuthClient;
 use actix_web::{
     middleware::Logger,
-    web::{self, get, scope, Data},
+    web::{self, scope, Data},
     App, HttpServer,
 };
-use clients::{
-    auth_clients::restful::AuthClient, dog_clients::restful::DogClient,
-    sms_verification_code_clients::restful::SMSVerificationCodeClient,
-    upload_clients::restful::UploadClient,
-    walk_request_clients::restful::WalkRequestClient,
-};
 use core::service::Service;
-use docs::api::generate_api_doc;
 use handlers::common::pass_through;
 use middlewares::auth::AuthMiddlewareFactory;
 use nb_from_env::{FromEnv, FromEnvDerive};
-use std::fs::create_dir_all;
 use std::sync::Arc;
 
 #[derive(FromEnvDerive, Clone)]
@@ -43,24 +34,14 @@ pub struct Config {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    create_dir_all("./docs").expect("failed to create docs dir");
-    generate_api_doc("./docs/api-spec.yml").expect("failed to generate docs");
     dotenv::dotenv().ok();
     let config = Config::from_env();
     env_logger::init_from_env(
         env_logger::Env::new().default_filter_or(&config.log_level),
     );
-    let service = Data::new(Service::new(
-        AuthClient::new(&config.auth_service_address),
-        UploadClient::new(&config.upload_service_address),
-        SMSVerificationCodeClient::new(
-            &config.sms_verification_code_service_address,
-        ),
-        DogClient::new(&config.dog_service_address),
-        WalkRequestClient::new(&config.walk_request_service_address),
-    ));
+    let service = Data::new(Service::new());
     let auth_middleware_factory = Arc::new(AuthMiddlewareFactory::new(
-        AuthClient::new("localhost:8001"),
+        AuthClient::new(&config.auth_service_address),
     ));
     HttpServer::new(move || {
         let logger = Logger::new(&config.log_format)
@@ -105,16 +86,14 @@ async fn main() -> std::io::Result<()> {
                             service.no_op_processor(),
                         ),
                     )))
-                    .service(
-                        scope("/walk_requests").default_service(
-                            web::route().to(pass_through(
-                                &config.walk_request_service_address,
-                                None,
-                                service.no_op_request_body_processor(),
-                                service.no_op_processor(),
-                            )),
-                        ), 
-                    )
+                    .service(scope("/walk_requests").default_service(
+                        web::route().to(pass_through(
+                            &config.walk_request_service_address,
+                            None,
+                            service.no_op_request_body_processor(),
+                            service.no_op_processor(),
+                        )),
+                    ))
                     .service(scope("/uploads").default_service(
                         web::route().to(pass_through(
                             &config.upload_service_address,
